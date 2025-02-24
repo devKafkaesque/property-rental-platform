@@ -16,6 +16,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
+import PropertyImageCarousel from "@/components/property-image-carousel";
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
   if (category === "luxury") return Castle;
@@ -104,19 +105,11 @@ export default function ManagePropertyPage() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-8">
-          <div className={`
-            h-[400px] rounded-lg flex items-center justify-center
-            ${property.category === "luxury" ? "bg-gradient-to-br from-amber-100 to-amber-500" :
-              property.category === "standard" ? "bg-gradient-to-br from-blue-100 to-blue-500" :
-              "bg-gradient-to-br from-green-100 to-green-500"}
-          `}>
-            <PropertyIcon className={`
-              h-48 w-48
-              ${property.category === "luxury" ? "text-amber-700" :
-                property.category === "standard" ? "text-blue-700" :
-                "text-green-700"}
-            `} />
-          </div>
+          <PropertyImageCarousel
+            images={property.images || []}
+            type={property.type}
+            category={property.category}
+          />
 
           <div className="space-y-6">
             <Card>

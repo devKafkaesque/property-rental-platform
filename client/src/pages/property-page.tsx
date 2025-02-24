@@ -10,6 +10,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Building2, Home, Hotel, Castle, Loader2, X, Wifi, CheckCircle2, Info, MapPin } from "lucide-react";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
+import PropertyImageCarousel from "@/components/property-image-carousel";
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
   if (category === "luxury") return Castle;
@@ -31,11 +32,9 @@ export default function PropertyPage() {
   });
 
   const handleBack = () => {
-    // If user is logged in, likely came from dashboard
     if (user) {
       setLocation("/dashboard");
     } else {
-      // Otherwise, return to home
       setLocation("/");
     }
   };
@@ -78,7 +77,6 @@ export default function PropertyPage() {
 
   return (
     <div className="min-h-screen bg-background p-6">
-      {/* Back Button */}
       <Button 
         variant="ghost" 
         className="mb-6"
@@ -90,19 +88,11 @@ export default function PropertyPage() {
 
       <div className="container mx-auto max-w-5xl">
         <div className="grid md:grid-cols-2 gap-8">
-          <div className={`
-            h-[400px] rounded-lg flex items-center justify-center
-            ${property.category === "luxury" ? "bg-gradient-to-br from-amber-100 to-amber-500" : 
-              property.category === "standard" ? "bg-gradient-to-br from-blue-100 to-blue-500" :
-              "bg-gradient-to-br from-green-100 to-green-500"}
-          `}>
-            <PropertyIcon className={`
-              h-48 w-48 
-              ${property.category === "luxury" ? "text-amber-700" : 
-                property.category === "standard" ? "text-blue-700" :
-                "text-green-700"}
-            `} />
-          </div>
+          <PropertyImageCarousel
+            images={property.images || []}
+            type={property.type}
+            category={property.category}
+          />
 
           <div>
             <div className="flex items-center gap-2 mb-2">
