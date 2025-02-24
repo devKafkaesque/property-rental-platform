@@ -66,7 +66,7 @@ export default function Dashboard() {
                 <DialogTrigger asChild>
                   <Button>Add Property</Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
                   <DialogHeader>
                     <DialogTitle>Add New Property</DialogTitle>
                   </DialogHeader>
