@@ -1,10 +1,10 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertReviewSchema } from "@shared/schema";
+import { insertReviewSchema, ViewingRequest } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Star } from "lucide-react";
@@ -17,10 +17,20 @@ interface ReviewFormProps {
 export default function ReviewForm({ propertyId, onSuccess }: ReviewFormProps) {
   const { toast } = useToast();
 
+  // Fetch completed viewings for this property
+  const { data: completedViewings } = useQuery<ViewingRequest[]>({
+    queryKey: [`/api/viewing-requests/tenant`],
+  });
+
+  const validCompletedViewing = completedViewings?.find(
+    viewing => viewing.propertyId === propertyId && viewing.status === "completed"
+  );
+
   const form = useForm({
     resolver: zodResolver(insertReviewSchema),
     defaultValues: {
       propertyId,
+      viewingId: validCompletedViewing?.id,
       rating: 5,
       comment: "",
     },
@@ -40,7 +50,22 @@ export default function ReviewForm({ propertyId, onSuccess }: ReviewFormProps) {
       form.reset();
       onSuccess?.();
     },
+    onError: (error: any) => {
+      toast({
+        title: "Error submitting review",
+        description: error.message || "Please ensure you have completed a viewing of this property.",
+        variant: "destructive",
+      });
+    },
   });
+
+  if (!validCompletedViewing) {
+    return (
+      <div className="text-muted-foreground text-sm mt-4">
+        You can only review this property after completing a viewing.
+      </div>
+    );
+  }
 
   return (
     <Form {...form}>
