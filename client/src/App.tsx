@@ -6,7 +6,8 @@ import { AuthProvider } from "./hooks/use-auth";
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home-page";
 import AuthPage from "@/pages/auth-page";
-import PropertyPage from "@/pages/property-page";
+import ViewPropertyPage from "@/pages/property-page";
+import ManagePropertyPage from "@/pages/manage-property-page";
 import Dashboard from "@/pages/dashboard";
 import { ProtectedRoute } from "./lib/protected-route";
 
@@ -16,7 +17,8 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <Route path="/" component={HomePage} />
       <ProtectedRoute path="/dashboard" component={Dashboard} />
-      <ProtectedRoute path="/property/:id" component={PropertyPage} />
+      <Route path="/property/:id" component={ViewPropertyPage} />
+      <ProtectedRoute path="/property/:id/manage" component={ManagePropertyPage} />
       <Route component={NotFound} />
     </Switch>
   );

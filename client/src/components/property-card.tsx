@@ -61,7 +61,7 @@ export default function PropertyCard({ property, isOwner }: PropertyCardProps) {
       </CardContent>
 
       <CardFooter>
-        <Link href={`/property/${property.id}`} className="w-full">
+        <Link href={isOwner ? `/property/${property.id}/manage` : `/property/${property.id}`} className="w-full">
           <Button variant={isOwner ? "outline" : "default"} className="w-full">
             {isOwner ? "Manage Property" : "View Details"}
           </Button>
