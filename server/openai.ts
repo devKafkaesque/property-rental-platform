@@ -49,11 +49,17 @@ export async function getPropertyRecommendations(
   try {
     const completion = await withRetry(async () => openai.chat.completions.create({
       model: "gpt-4o",
+      temperature: 0.2, // Lower temperature for more consistent, structured output
       response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content: "You are a real estate expert. Analyze the property preferences and provide recommendations with a matching score and explanation. Respond with JSON containing 'explanation' (string) and 'score' (number between 0 and 1)."
+          content: `You are a real estate expert. Analyze property preferences and provide recommendations.
+          Return a JSON object with exactly these fields:
+          {
+            "explanation": "A detailed explanation string",
+            "score": 0.85 // A number between 0 and 1
+          }`
         },
         {
           role: "user",
@@ -62,7 +68,21 @@ export async function getPropertyRecommendations(
       ]
     }));
 
-    return JSON.parse(completion.choices[0].message.content!);
+    const content = completion.choices[0].message.content;
+    if (!content) {
+      throw new Error("Empty response from OpenAI");
+    }
+
+    try {
+      const parsed = JSON.parse(content);
+      if (!parsed.explanation || typeof parsed.score !== 'number') {
+        throw new Error("Invalid response structure");
+      }
+      return parsed;
+    } catch (parseError) {
+      console.error("Raw OpenAI response:", content);
+      throw new Error("Failed to parse OpenAI response");
+    }
   } catch (error) {
     console.error("OpenAI API Error:", error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -88,11 +108,18 @@ export async function generatePropertyDescription(
   try {
     const completion = await withRetry(async () => openai.chat.completions.create({
       model: "gpt-4o",
+      temperature: 0.3,
       response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content: "You are an expert real estate copywriter specializing in SEO-optimized property descriptions. Create engaging descriptions that highlight key features. Respond with JSON containing 'description' (2-3 paragraphs), 'highlights' (3-5 key points), and 'seoKeywords' (relevant SEO terms)."
+          content: `You are a real estate copywriter. Create property descriptions.
+          Return a JSON object with exactly these fields:
+          {
+            "description": "A 2-3 paragraph description string",
+            "highlights": ["3-5 key points as strings"],
+            "seoKeywords": ["relevant SEO terms as strings"]
+          }`
         },
         {
           role: "user",
@@ -104,7 +131,21 @@ export async function generatePropertyDescription(
       ]
     }));
 
-    return JSON.parse(completion.choices[0].message.content!);
+    const content = completion.choices[0].message.content;
+    if (!content) {
+      throw new Error("Empty response from OpenAI");
+    }
+
+    try {
+      const parsed = JSON.parse(content);
+      if (!parsed.description || !Array.isArray(parsed.highlights) || !Array.isArray(parsed.seoKeywords)) {
+        throw new Error("Invalid response structure");
+      }
+      return parsed;
+    } catch (parseError) {
+      console.error("Raw OpenAI response:", content);
+      throw new Error("Failed to parse OpenAI response");
+    }
   } catch (error) {
     console.error("OpenAI API Error:", error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -137,11 +178,22 @@ export async function analyzePricing(
   try {
     const completion = await withRetry(async () => openai.chat.completions.create({
       model: "gpt-4o",
+      temperature: 0.2,
       response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content: "You are an expert real estate pricing analyst. Analyze property details and market data to suggest optimal rental pricing. Respond with JSON containing 'suggestedPrice' (number), 'priceRange' (object with min/max), 'justification' (string), and 'marketInsights' (array of strings)."
+          content: `You are a real estate pricing analyst. Analyze properties and suggest prices.
+          Return a JSON object with exactly these fields:
+          {
+            "suggestedPrice": 2500, // A number
+            "priceRange": {
+              "min": 2300, // A number
+              "max": 2700  // A number
+            },
+            "justification": "Price reasoning string",
+            "marketInsights": ["Market insight strings"]
+          }`
         },
         {
           role: "user",
@@ -153,16 +205,29 @@ export async function analyzePricing(
       ]
     }));
 
-    const pricing = JSON.parse(completion.choices[0].message.content!);
-    return {
-      suggestedPrice: Math.round(pricing.suggestedPrice),
-      priceRange: {
-        min: Math.round(pricing.priceRange.min),
-        max: Math.round(pricing.priceRange.max),
-      },
-      justification: pricing.justification,
-      marketInsights: pricing.marketInsights,
-    };
+    const content = completion.choices[0].message.content;
+    if (!content) {
+      throw new Error("Empty response from OpenAI");
+    }
+
+    try {
+      const parsed = JSON.parse(content);
+      if (!parsed.suggestedPrice || !parsed.priceRange || !parsed.justification || !Array.isArray(parsed.marketInsights)) {
+        throw new Error("Invalid response structure");
+      }
+      return {
+        suggestedPrice: Math.round(parsed.suggestedPrice),
+        priceRange: {
+          min: Math.round(parsed.priceRange.min),
+          max: Math.round(parsed.priceRange.max),
+        },
+        justification: parsed.justification,
+        marketInsights: parsed.marketInsights,
+      };
+    } catch (parseError) {
+      console.error("Raw OpenAI response:", content);
+      throw new Error("Failed to parse OpenAI response");
+    }
   } catch (error) {
     console.error("OpenAI API Error:", error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
