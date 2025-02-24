@@ -5,8 +5,9 @@ import PropertyForm from "@/components/property-form";
 import PropertyCard from "@/components/property-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -16,8 +17,9 @@ import {
 } from "@/components/ui/dialog";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, logoutMutation } = useAuth();
   const [showAddProperty, setShowAddProperty] = useState(false);
+  const [, setLocation] = useLocation();
 
   const { data: properties, isLoading: propertiesLoading } = useQuery<Property[]>({
     queryKey: ["/api/properties/owner", user?.id],
@@ -34,9 +36,27 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="container mx-auto">
-        <h1 className="text-4xl font-bold mb-8">
-          Welcome, {user.username}!
-        </h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold">
+            Welcome, {user.username}!
+          </h1>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              logoutMutation.mutate(undefined, {
+                onSuccess: () => setLocation("/auth")
+              });
+            }}
+            disabled={logoutMutation.isPending}
+          >
+            {logoutMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <LogOut className="h-4 w-4 mr-2" />
+            )}
+            Logout
+          </Button>
+        </div>
 
         {user.role === "landowner" && (
           <>
