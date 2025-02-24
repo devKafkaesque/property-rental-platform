@@ -32,9 +32,20 @@ export function AIPropertyHelper({
   const { toast } = useToast();
   const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
   const [isAnalyzingPrice, setIsAnalyzingPrice] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   const generateDescription = async () => {
+    if (!property.location) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter a property location first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsGeneratingDescription(true);
+    setRetryCount(0);
     try {
       const response = await fetch("/api/ai/description", {
         method: "POST",
@@ -65,10 +76,20 @@ export function AIPropertyHelper({
         ? error.message
         : "Failed to generate description. Please try again.";
 
+      if (message.includes("rate limit") && retryCount < 3) {
+        setRetryCount(prev => prev + 1);
+        toast({
+          title: "Retrying...",
+          description: `Rate limit reached. Attempt ${retryCount + 1} of 3...`,
+        });
+        setTimeout(generateDescription, 2000 * Math.pow(2, retryCount));
+        return;
+      }
+
       toast({
         title: "Error",
         description: message.includes("rate limit")
-          ? "Too many requests. Please wait a few seconds and try again."
+          ? "Rate limit exceeded. Please try again in a few minutes."
           : message,
         variant: "destructive",
       });
@@ -78,7 +99,17 @@ export function AIPropertyHelper({
   };
 
   const analyzePrice = async () => {
+    if (!property.location) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter a property location first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsAnalyzingPrice(true);
+    setRetryCount(0);
     try {
       const response = await fetch("/api/ai/pricing", {
         method: "POST",
@@ -108,10 +139,20 @@ export function AIPropertyHelper({
         ? error.message
         : "Failed to analyze price. Please try again.";
 
+      if (message.includes("rate limit") && retryCount < 3) {
+        setRetryCount(prev => prev + 1);
+        toast({
+          title: "Retrying...",
+          description: `Rate limit reached. Attempt ${retryCount + 1} of 3...`,
+        });
+        setTimeout(analyzePrice, 2000 * Math.pow(2, retryCount));
+        return;
+      }
+
       toast({
         title: "Error",
         description: message.includes("rate limit")
-          ? "Too many requests. Please wait a few seconds and try again."
+          ? "Rate limit exceeded. Please try again in a few minutes."
           : message,
         variant: "destructive",
       });
@@ -129,23 +170,23 @@ export function AIPropertyHelper({
         <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
           <Button
             onClick={generateDescription}
-            disabled={isGeneratingDescription}
+            disabled={isGeneratingDescription || !property.location}
             className="flex-1"
           >
             {isGeneratingDescription && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            Generate Description
+            {isGeneratingDescription ? "Generating..." : "Generate Description"}
           </Button>
           <Button
             onClick={analyzePrice}
-            disabled={isAnalyzingPrice}
+            disabled={isAnalyzingPrice || !property.location}
             className="flex-1"
           >
             {isAnalyzingPrice && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
-            Analyze Price
+            {isAnalyzingPrice ? "Analyzing..." : "Analyze Price"}
           </Button>
         </div>
       </CardContent>
