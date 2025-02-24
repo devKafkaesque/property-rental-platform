@@ -28,7 +28,9 @@ export default function ViewingRequestManagement({ propertyId, isOwner }: Viewin
       return res.json();
     },
     onSuccess: () => {
+      // Invalidate both owner and tenant queries to ensure all views are updated
       queryClient.invalidateQueries({ queryKey: [`/api/viewing-requests/property/${propertyId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/viewing-requests/tenant`] });
       toast({
         title: "Status updated",
         description: "The viewing request status has been updated.",
