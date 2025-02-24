@@ -1,7 +1,6 @@
 import OpenAI from "openai";
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ baseURL: "https://api.x.ai/v1", apiKey: process.env.XAI_API_KEY });
 
 // Retry configuration
 const INITIAL_RETRY_DELAY = 1000; // 1 second
@@ -43,7 +42,7 @@ export async function getPropertyRecommendations(
   return withRetry(async () => {
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "grok-2-1212",
         messages: [
           {
             role: "system",
@@ -68,7 +67,7 @@ export async function getPropertyRecommendations(
         score: Math.max(0, Math.min(1, result.score)),
       };
     } catch (error: unknown) {
-      console.error("OpenAI API Error:", error);
+      console.error("xAI API Error:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       throw new Error("Failed to get recommendations: " + errorMessage);
     }
@@ -95,7 +94,7 @@ export async function generatePropertyDescription(
     try {
       console.log("Generating description for:", JSON.stringify(details, null, 2));
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "grok-2-1212",
         messages: [
           {
             role: "system",
@@ -123,10 +122,10 @@ export async function generatePropertyDescription(
         throw new Error("No content in response");
       }
 
-      console.log("OpenAI Response:", content);
+      console.log("xAI Response:", content);
       return JSON.parse(content);
     } catch (error: unknown) {
-      console.error("OpenAI API Error:", error);
+      console.error("xAI API Error:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       throw new Error("Failed to generate description: " + errorMessage);
     }
@@ -159,7 +158,7 @@ export async function analyzePricing(
     try {
       console.log("Analyzing pricing for:", JSON.stringify(propertyDetails, null, 2));
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "grok-2-1212",
         messages: [
           {
             role: "system",
@@ -187,7 +186,7 @@ export async function analyzePricing(
         throw new Error("No content in response");
       }
 
-      console.log("OpenAI Response:", content);
+      console.log("xAI Response:", content);
       const result = JSON.parse(content);
       return {
         suggestedPrice: Math.round(result.suggestedPrice),
@@ -199,7 +198,7 @@ export async function analyzePricing(
         marketInsights: result.marketInsights,
       };
     } catch (error: unknown) {
-      console.error("OpenAI API Error:", error);
+      console.error("xAI API Error:", error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       throw new Error("Failed to analyze pricing: " + errorMessage);
     }
