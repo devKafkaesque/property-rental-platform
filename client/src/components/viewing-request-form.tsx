@@ -8,7 +8,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
 
 interface ViewingRequestFormProps {
   propertyId: number;
@@ -29,7 +28,12 @@ export default function ViewingRequestForm({ propertyId, onSuccess }: ViewingReq
 
   const viewingRequestMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", "/api/viewing-requests", data);
+      // Convert date to ISO string before sending
+      const formattedData = {
+        ...data,
+        preferredDate: data.preferredDate.toISOString(),
+      };
+      const res = await apiRequest("POST", "/api/viewing-requests", formattedData);
       return res.json();
     },
     onSuccess: () => {

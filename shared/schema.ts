@@ -73,6 +73,9 @@ export const insertViewingRequestSchema = createInsertSchema(viewingRequests).pi
   propertyId: true,
   preferredDate: true,
   message: true,
+}).extend({
+  preferredDate: z.coerce.date(), // Use coerce.date() to handle date string conversion
+  message: z.string().min(10).max(500).optional(),
 });
 
 // Update review schema to require viewing
