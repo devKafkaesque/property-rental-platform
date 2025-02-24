@@ -7,9 +7,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2 } from "lucide-react";
+import { Building2, Home, Hotel, Castle, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
+
+function getPropertyIcon(type: Property["type"], category: Property["category"]) {
+  if (category === "luxury") return Castle;
+  if (type === "apartment") return Building2;
+  if (type === "villa") return Hotel;
+  return Home;
+}
 
 export default function PropertyPage() {
   const { id } = useParams();
@@ -55,21 +62,34 @@ export default function PropertyPage() {
 
   if (!property) return <div>Property not found</div>;
 
+  const PropertyIcon = getPropertyIcon(property.type, property.category);
+
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="container mx-auto max-w-5xl">
         <div className="grid md:grid-cols-2 gap-8">
-          <div>
-            <img
-              src={property.imageUrl}
-              alt={property.title}
-              className="w-full h-[400px] object-cover rounded-lg"
-            />
+          <div className={`
+            h-[400px] rounded-lg flex items-center justify-center
+            ${property.category === "luxury" ? "bg-gradient-to-br from-amber-100 to-amber-500" : 
+              property.category === "standard" ? "bg-gradient-to-br from-blue-100 to-blue-500" :
+              "bg-gradient-to-br from-green-100 to-green-500"}
+          `}>
+            <PropertyIcon className={`
+              h-48 w-48 
+              ${property.category === "luxury" ? "text-amber-700" : 
+                property.category === "standard" ? "text-blue-700" :
+                "text-green-700"}
+            `} />
           </div>
 
           <div>
-            <h1 className="text-3xl font-bold mb-4">{property.title}</h1>
-            <p className="text-2xl font-semibold mb-2">${property.price}/month</p>
+            <h1 className="text-3xl font-bold mb-4">{property.name}</h1>
+            <div className="flex items-center gap-2 text-muted-foreground mb-4">
+              <PropertyIcon className="h-5 w-5" />
+              <span>
+                {property.type.charAt(0).toUpperCase() + property.type.slice(1)} - {property.furnished}
+              </span>
+            </div>
             <p className="text-muted-foreground mb-4">{property.address}</p>
             <p className="mb-6">{property.description}</p>
 
