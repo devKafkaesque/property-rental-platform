@@ -1,6 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || "");
+if (!process.env.GOOGLE_API_KEY) {
+  throw new Error("GOOGLE_API_KEY environment variable is not set. Please configure your Google API key.");
+}
+
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
 // Retry configuration
@@ -45,11 +49,16 @@ export async function getPropertyRecommendations(
 
 Property details: ${JSON.stringify(preferences)}`;
 
-    const result = await model.generateContent(prompt);
+    const result = await withRetry(async () => model.generateContent(prompt));
     const response = await result.response;
     const text = response.text();
 
-    return JSON.parse(text);
+    try {
+      return JSON.parse(text);
+    } catch (parseError) {
+      console.error("Failed to parse Gemini response:", text);
+      throw new Error("Invalid response format from AI service");
+    }
   } catch (error) {
     console.error("Gemini API Error:", error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -88,12 +97,16 @@ export async function generatePropertyDescription(
       amenities: details.amenities || []
     })}`;
 
-    const result = await model.generateContent(prompt);
+    const result = await withRetry(async () => model.generateContent(prompt));
     const response = await result.response;
     const text = response.text();
 
-    console.log("Gemini Response:", text);
-    return JSON.parse(text);
+    try {
+      return JSON.parse(text);
+    } catch (parseError) {
+      console.error("Failed to parse Gemini response:", text);
+      throw new Error("Invalid response format from AI service");
+    }
   } catch (error) {
     console.error("Gemini API Error:", error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -139,22 +152,25 @@ export async function analyzePricing(
       amenities: propertyDetails.amenities || []
     })}`;
 
-    const result = await model.generateContent(prompt);
+    const result = await withRetry(async () => model.generateContent(prompt));
     const response = await result.response;
     const text = response.text();
 
-    console.log("Gemini Response:", text);
-    const pricing = JSON.parse(text);
-
-    return {
-      suggestedPrice: Math.round(pricing.suggestedPrice),
-      priceRange: {
-        min: Math.round(pricing.priceRange.min),
-        max: Math.round(pricing.priceRange.max),
-      },
-      justification: pricing.justification,
-      marketInsights: pricing.marketInsights,
-    };
+    try {
+      const pricing = JSON.parse(text);
+      return {
+        suggestedPrice: Math.round(pricing.suggestedPrice),
+        priceRange: {
+          min: Math.round(pricing.priceRange.min),
+          max: Math.round(pricing.priceRange.max),
+        },
+        justification: pricing.justification,
+        marketInsights: pricing.marketInsights,
+      };
+    } catch (parseError) {
+      console.error("Failed to parse Gemini response:", text);
+      throw new Error("Invalid response format from AI service");
+    }
   } catch (error) {
     console.error("Gemini API Error:", error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
