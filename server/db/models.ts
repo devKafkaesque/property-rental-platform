@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
-import { User, Property, ViewingRequest, Review, Booking } from "@shared/schema";
+import { User, Property, ViewingRequest, Review, Booking, TenantContract } from "@shared/schema";
 
 // User Schema
 export interface UserDocument extends Omit<User, "id">, Document {
@@ -14,9 +14,9 @@ const userSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-// Property Schema
+// Enhanced Property Schema
 export interface PropertyDocument extends Omit<Property, "id">, Document {
-  id: number;  // Override the id type to match our schema
+  id: number;
 }
 
 const propertySchema = new Schema({
@@ -29,11 +29,25 @@ const propertySchema = new Schema({
   wifi: { type: Boolean, default: false },
   restrictions: { type: Schema.Types.Mixed },
   condition: { type: String, required: true },
-  status: { type: String, default: "available" },
+  status: { type: String, default: "available", enum: ["available", "rented", "maintenance", "inactive"] },
   category: { type: String, required: true, enum: ["luxury", "standard", "budget"] },
   ownerId: { type: Number, required: true },
   images: { type: [String], default: [] },
   createdAt: { type: Date, default: Date.now },
+  // New detailed property fields
+  bedrooms: { type: Number, required: true },
+  bathrooms: { type: Number, required: true },
+  squareFootage: { type: Number, required: true },
+  yearBuilt: { type: Number },
+  parkingSpaces: { type: Number, default: 0 },
+  petsAllowed: { type: Boolean, default: false },
+  utilities: { type: [String], default: [] },
+  amenities: { type: [String], default: [] },
+  accessibility: { type: [String], default: [] },
+  securityFeatures: { type: [String], default: [] },
+  maintainanceHistory: { type: [Object], default: [] },
+  rentPrice: { type: Number, required: true },
+  depositAmount: { type: Number, required: true },
 });
 
 // Booking Schema
@@ -97,9 +111,29 @@ const reviewSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// Add Tenant Contract Schema
+export interface TenantContractDocument extends Omit<TenantContract, "id">, Document {
+  id: number;
+}
+
+const tenantContractSchema = new Schema({
+  id: { type: Number, required: true, unique: true },
+  propertyId: { type: Number, required: true },
+  tenantId: { type: Number, required: true },
+  landownerId: { type: Number, required: true },
+  startDate: { type: Date, required: true },
+  endDate: { type: Date, required: true },
+  rentAmount: { type: Number, required: true },
+  depositPaid: { type: Boolean, default: false },
+  contractStatus: { type: String, default: "active" },
+  documents: { type: [String], default: [] },
+  createdAt: { type: Date, default: Date.now },
+});
+
 // Create and export models
 export const UserModel = mongoose.model<UserDocument>("User", userSchema);
 export const PropertyModel = mongoose.model<PropertyDocument>("Property", propertySchema);
 export const BookingModel = mongoose.model<BookingDocument>("Booking", bookingSchema);
 export const ViewingRequestModel = mongoose.model<ViewingRequestDocument>("ViewingRequest", viewingRequestSchema);
 export const ReviewModel = mongoose.model<ReviewDocument>("Review", reviewSchema);
+export const TenantContractModel = mongoose.model<TenantContractDocument>("TenantContract", tenantContractSchema);

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { getPropertyRecommendations, generatePropertyDescription, analyzePricing } from "./openai";
-import { insertPropertySchema, insertBookingSchema, insertReviewSchema, insertViewingRequestSchema } from "@shared/schema";
+import { insertPropertySchema, insertBookingSchema, insertReviewSchema, insertViewingRequestSchema, insertTenantContractSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -64,7 +64,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const property = await storage.createProperty({
       ...data,
       ownerId: req.user!.id,
-      status: "available", // Add default status
+      status: "available",
+      maintainanceHistory: [], // Initialize empty maintenance history
     });
     res.json(property);
   });
@@ -90,7 +91,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!property) return res.status(404).end();
     if (property.ownerId !== req.user!.id) return res.status(403).end();
 
-    const data = insertPropertySchema.parse(req.body);
+    const data = insertPropertySchema.partial().parse(req.body);
     const updatedProperty = await storage.updateProperty(Number(req.params.id), {
       ...data,
       status: property.status, // Preserve the existing status
@@ -116,6 +117,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Serve uploaded files
   app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+  // Tenant Contract routes
+  app.post("/api/tenant-contracts", ensureLandowner, async (req, res) => {
+    const data = insertTenantContractSchema.parse(req.body);
+
+    // Ensure the property belongs to the landowner
+    const property = await storage.getPropertyById(data.propertyId);
+    if (!property || property.ownerId !== req.user!.id) {
+      return res.status(403).json({ error: "You can only create contracts for your own properties" });
+    }
+
+    const contract = await storage.createTenantContract({
+      ...data,
+      landownerId: req.user!.id,
+    });
+
+    // Update property status to rented
+    await storage.updateProperty(data.propertyId, { status: "rented" });
+
+    res.json(contract);
+  });
+
+  app.get("/api/tenant-contracts/property/:id", ensureLandowner, async (req, res) => {
+    const property = await storage.getPropertyById(Number(req.params.id));
+    if (!property || property.ownerId !== req.user!.id) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    const contracts = await storage.getTenantContractsByProperty(Number(req.params.id));
+    res.json(contracts);
+  });
+
+  app.get("/api/tenant-contracts/tenant", ensureAuthenticated, async (req, res) => {
+    if (req.user!.role !== "tenant") {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    const contracts = await storage.getTenantContractsByTenant(req.user!.id);
+    res.json(contracts);
+  });
+
+  app.get("/api/tenant-contracts/landowner", ensureLandowner, async (req, res) => {
+    const contracts = await storage.getTenantContractsByLandowner(req.user!.id);
+    res.json(contracts);
+  });
+
+  app.patch("/api/tenant-contracts/:id", ensureLandowner, async (req, res) => {
+    const contract = await storage.getTenantContractsByProperty(Number(req.params.id));
+    if (!contract || contract[0].landownerId !== req.user!.id) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    const updates = insertTenantContractSchema.partial().parse(req.body);
+    const updatedContract = await storage.updateTenantContract(Number(req.params.id), updates);
+    res.json(updatedContract);
+  });
 
   // Booking routes
   app.post("/api/bookings", ensureAuthenticated, async (req, res) => {
@@ -144,6 +199,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     );
     res.json(booking);
   });
+
 
   // AI routes
   app.post("/api/ai/recommendations", ensureAuthenticated, async (req, res) => {

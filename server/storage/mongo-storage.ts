@@ -1,6 +1,6 @@
 import { IStorage } from "../storage";
-import { User, Property, Booking, ViewingRequest, Review, InsertUser } from "@shared/schema";
-import { UserModel, PropertyModel, BookingModel, ViewingRequestModel, ReviewModel } from "../db/models";
+import { User, Property, Booking, ViewingRequest, Review, InsertUser, TenantContract } from "@shared/schema";
+import { UserModel, PropertyModel, BookingModel, ViewingRequestModel, ReviewModel, TenantContractModel } from "../db/models";
 import session from "express-session";
 import MongoStore from "connect-mongo";
 
@@ -197,5 +197,43 @@ export class MongoStorage implements IStorage {
     );
     if (!review) throw new Error("Review not found");
     return review.toObject();
+  }
+
+  // Add Tenant Contract operations
+  async createTenantContract(contract: Omit<TenantContract, "id" | "createdAt">): Promise<TenantContract> {
+    const lastContract = await TenantContractModel.findOne().sort({ id: -1 });
+    const newId = (lastContract?.id || 0) + 1;
+
+    const newContract = new TenantContractModel({
+      ...contract,
+      id: newId,
+    });
+    await newContract.save();
+    return newContract.toObject();
+  }
+
+  async getTenantContractsByProperty(propertyId: number): Promise<TenantContract[]> {
+    const contracts = await TenantContractModel.find({ propertyId });
+    return contracts.map(contract => contract.toObject());
+  }
+
+  async getTenantContractsByTenant(tenantId: number): Promise<TenantContract[]> {
+    const contracts = await TenantContractModel.find({ tenantId });
+    return contracts.map(contract => contract.toObject());
+  }
+
+  async getTenantContractsByLandowner(landownerId: number): Promise<TenantContract[]> {
+    const contracts = await TenantContractModel.find({ landownerId });
+    return contracts.map(contract => contract.toObject());
+  }
+
+  async updateTenantContract(id: number, updates: Partial<TenantContract>): Promise<TenantContract> {
+    const contract = await TenantContractModel.findOneAndUpdate(
+      { id },
+      { $set: updates },
+      { new: true }
+    );
+    if (!contract) throw new Error("Tenant contract not found");
+    return contract.toObject();
   }
 }

@@ -2,24 +2,26 @@ import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Existing type definitions
-export type UserRole = "landowner" | "tenant";
-export type FurnishedType = "full" | "semi" | "unfurnished";
-export type PropertyType = "house" | "apartment" | "villa" | "studio";
-export type PropertyCategory = "luxury" | "standard" | "budget";
-export type ViewingStatus = "pending" | "approved" | "completed" | "cancelled";
-export type ReviewStatus = "published" | "pending" | "rejected";
+// Enhanced type definitions with proper enums
+export const UserRole = z.enum(["landowner", "tenant"]);
+export const FurnishedType = z.enum(["full", "semi", "unfurnished"]);
+export const PropertyType = z.enum(["house", "apartment", "villa", "studio"]);
+export const PropertyCategory = z.enum(["luxury", "standard", "budget"]);
+export const ViewingStatus = z.enum(["pending", "approved", "completed", "cancelled"]);
+export const ReviewStatus = z.enum(["published", "pending", "rejected"]);
+export const MaintenanceType = z.enum(["repair", "renovation", "inspection", "emergency"]);
+export const PropertyStatus = z.enum(["available", "rented", "maintenance", "inactive"]);
 
-// Existing tables remain unchanged
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  email: text("email").notNull().unique(),
-  password: text("password").notNull(),
-  role: text("role").notNull().$type<UserRole>(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+export type UserRole = z.infer<typeof UserRole>;
+export type FurnishedType = z.infer<typeof FurnishedType>;
+export type PropertyType = z.infer<typeof PropertyType>;
+export type PropertyCategory = z.infer<typeof PropertyCategory>;
+export type ViewingStatus = z.infer<typeof ViewingStatus>;
+export type ReviewStatus = z.infer<typeof ReviewStatus>;
+export type MaintenanceType = z.infer<typeof MaintenanceType>;
+export type PropertyStatus = z.infer<typeof PropertyStatus>;
 
+// Enhanced property table with more detailed information
 export const properties = pgTable("properties", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -28,16 +30,42 @@ export const properties = pgTable("properties", {
   type: text("type").notNull().$type<PropertyType>(),
   furnished: text("furnished").notNull().$type<FurnishedType>(),
   wifi: boolean("wifi").default(false),
-  restrictions: jsonb("restrictions"),
+  restrictions: jsonb("restrictions").default({}),
   condition: text("condition").notNull(),
-  status: text("status").default("available"),
+  status: text("status").$type<PropertyStatus>().default("available"),
   category: text("category").notNull().$type<PropertyCategory>(),
   ownerId: integer("owner_id").notNull(),
   images: text("images").array().default([]),
   createdAt: timestamp("created_at").defaultNow(),
+  bedrooms: integer("bedrooms").notNull(),
+  bathrooms: integer("bathrooms").notNull(),
+  squareFootage: integer("square_footage").notNull(),
+  yearBuilt: integer("year_built"),
+  parkingSpaces: integer("parking_spaces").default(0),
+  petsAllowed: boolean("pets_allowed").default(false),
+  utilities: jsonb("utilities").default([]),
+  amenities: jsonb("amenities").default([]),
+  accessibility: jsonb("accessibility").default([]),
+  securityFeatures: jsonb("security_features").default([]),
+  maintainanceHistory: jsonb("maintainance_history").default([]),
+  rentPrice: integer("rent_price").notNull(),
+  depositAmount: integer("deposit_amount").notNull(),
 });
 
-// Add viewing requests table
+export const tenantContracts = pgTable("tenant_contracts", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").notNull(),
+  tenantId: integer("tenant_id").notNull(),
+  landownerId: integer("landowner_id").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  rentAmount: integer("rent_amount").notNull(),
+  depositPaid: boolean("deposit_paid").default(false),
+  contractStatus: text("contract_status").default("active"),
+  documents: text("documents").array().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const viewingRequests = pgTable("viewing_requests", {
   id: serial("id").primaryKey(),
   propertyId: integer("property_id").notNull(),
@@ -62,24 +90,32 @@ export const reviews = pgTable("reviews", {
   id: serial("id").primaryKey(),
   propertyId: integer("property_id").notNull(),
   tenantId: integer("tenant_id").notNull(),
-  viewingId: integer("viewing_id").notNull(), // Link to the completed viewing
+  viewingId: integer("viewing_id").notNull(), 
   rating: integer("rating").notNull(),
   comment: text("comment").notNull(),
   status: text("status").notNull().$type<ReviewStatus>().default("pending"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Add viewing request schema
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
+  password: text("password").notNull(),
+  role: text("role").notNull().$type<UserRole>(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+
 export const insertViewingRequestSchema = createInsertSchema(viewingRequests).pick({
   propertyId: true,
   preferredDate: true,
   message: true,
 }).extend({
-  preferredDate: z.coerce.date(), // Use coerce.date() to handle date string conversion
+  preferredDate: z.coerce.date(), 
   message: z.string().min(10).max(500).optional(),
 });
 
-// Update review schema to require viewing
 export const insertReviewSchema = createInsertSchema(reviews).pick({
   propertyId: true,
   viewingId: true,
@@ -90,7 +126,6 @@ export const insertReviewSchema = createInsertSchema(reviews).pick({
   comment: z.string().min(10).max(500),
 });
 
-// Update user schema to include email
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   email: true,
@@ -113,6 +148,28 @@ export const insertPropertySchema = createInsertSchema(properties).pick({
   condition: true,
   category: true,
   images: true,
+  bedrooms: true,
+  bathrooms: true,
+  squareFootage: true,
+  yearBuilt: true,
+  parkingSpaces: true,
+  petsAllowed: true,
+  utilities: true,
+  amenities: true,
+  accessibility: true,
+  securityFeatures: true,
+  rentPrice: true,
+  depositAmount: true,
+}).extend({
+  type: PropertyType,
+  furnished: FurnishedType,
+  category: PropertyCategory,
+  images: z.array(z.string()).default([]),
+  restrictions: z.record(z.any()).default({}),
+  utilities: z.array(z.string()).default([]),
+  amenities: z.array(z.string()).default([]),
+  accessibility: z.array(z.string()).default([]),
+  securityFeatures: z.array(z.string()).default([]),
 });
 
 export const insertBookingSchema = createInsertSchema(bookings).pick({
@@ -121,8 +178,20 @@ export const insertBookingSchema = createInsertSchema(bookings).pick({
   endDate: true,
 });
 
+export const insertTenantContractSchema = createInsertSchema(tenantContracts).pick({
+  propertyId: true,
+  tenantId: true,
+  landownerId: true,
+  startDate: true,
+  endDate: true,
+  rentAmount: true,
+  documents: true,
+}).extend({
+  documents: z.array(z.string()).default([]),
+  depositPaid: z.boolean().default(false),
+  contractStatus: z.string().default("active")
+});
 
-// Export types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Property = typeof properties.$inferSelect;
@@ -131,3 +200,6 @@ export type Review = typeof reviews.$inferSelect;
 export type InsertViewingRequest = z.infer<typeof insertViewingRequestSchema>;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 export type Booking = typeof bookings.$inferSelect;
+export type TenantContract = typeof tenantContracts.$inferSelect;
+export type InsertTenantContract = z.infer<typeof insertTenantContractSchema>;
+export type InsertProperty = z.infer<typeof insertPropertySchema>;
