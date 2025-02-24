@@ -40,6 +40,10 @@ export async function getPropertyRecommendations(
       score: Math.max(0, Math.min(1, result.score)),
     };
   } catch (error: unknown) {
+    console.error("OpenAI API Error:", error);
+    if (error instanceof Error && error.message.includes("429")) {
+      throw new Error("API rate limit exceeded. Please try again in a few seconds.");
+    }
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     throw new Error("Failed to get recommendations: " + errorMessage);
   }
@@ -62,6 +66,7 @@ export async function generatePropertyDescription(
   seoKeywords: string[];
 }> {
   try {
+    console.log("Generating description for:", JSON.stringify(details, null, 2));
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -69,15 +74,18 @@ export async function generatePropertyDescription(
           role: "system",
           content: `You are an expert real estate copywriter specializing in SEO-optimized property descriptions. 
           Create an engaging, detailed property description that highlights key features and appeals to potential tenants. 
-          Include SEO-friendly keywords and property highlights.
           Format the response as a JSON with three fields:
           - description: A compelling 2-3 paragraph description
           - highlights: An array of 3-5 key selling points
-          - seoKeywords: An array of relevant SEO keywords`,
+          - seoKeywords: An array of relevant SEO keywords for the listing`,
         },
         {
           role: "user",
-          content: JSON.stringify(details),
+          content: JSON.stringify({
+            ...details,
+            features: details.features || [],
+            amenities: details.amenities || []
+          }),
         },
       ],
       response_format: { type: "json_object" },
@@ -88,8 +96,13 @@ export async function generatePropertyDescription(
       throw new Error("No content in response");
     }
 
+    console.log("OpenAI Response:", content);
     return JSON.parse(content);
   } catch (error: unknown) {
+    console.error("OpenAI API Error:", error);
+    if (error instanceof Error && error.message.includes("429")) {
+      throw new Error("API rate limit exceeded. Please try again in a few seconds.");
+    }
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     throw new Error("Failed to generate description: " + errorMessage);
   }
@@ -118,6 +131,7 @@ export async function analyzePricing(
   marketInsights: string[];
 }> {
   try {
+    console.log("Analyzing pricing for:", JSON.stringify(propertyDetails, null, 2));
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -125,16 +139,18 @@ export async function analyzePricing(
           role: "system",
           content: `You are an expert real estate pricing analyst. Analyze the property details and market data to suggest optimal rental pricing.
           Consider location, property features, market trends, and amenities.
-          Provide a detailed analysis with:
-          - A specific suggested price
-          - A recommended price range
-          - Justification for the pricing
-          - Key market insights
-          Format response as JSON with fields: suggestedPrice, priceRange (min, max), justification, and marketInsights (array)`,
+          Format response as JSON with fields:
+          - suggestedPrice: A specific recommended monthly rental price
+          - priceRange: Object with min and max monthly rental prices
+          - justification: A brief explanation of the pricing recommendation
+          - marketInsights: Array of key market insights that influenced the price`,
         },
         {
           role: "user",
-          content: JSON.stringify(propertyDetails),
+          content: JSON.stringify({
+            ...propertyDetails,
+            amenities: propertyDetails.amenities || []
+          }),
         },
       ],
       response_format: { type: "json_object" },
@@ -145,6 +161,7 @@ export async function analyzePricing(
       throw new Error("No content in response");
     }
 
+    console.log("OpenAI Response:", content);
     const result = JSON.parse(content);
     return {
       suggestedPrice: Math.round(result.suggestedPrice),
@@ -156,6 +173,10 @@ export async function analyzePricing(
       marketInsights: result.marketInsights,
     };
   } catch (error: unknown) {
+    console.error("OpenAI API Error:", error);
+    if (error instanceof Error && error.message.includes("429")) {
+      throw new Error("API rate limit exceeded. Please try again in a few seconds.");
+    }
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     throw new Error("Failed to analyze pricing: " + errorMessage);
   }

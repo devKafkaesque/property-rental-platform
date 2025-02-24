@@ -39,24 +39,37 @@ export function AIPropertyHelper({
       const response = await fetch("/api/ai/description", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(property),
+        body: JSON.stringify({
+          ...property,
+          features: property.features || [],
+          amenities: property.amenities || []
+        }),
       });
 
-      if (!response.ok) throw new Error("Failed to generate description");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to generate description");
+      }
 
       const data = await response.json();
       if (onDescriptionGenerated) {
         onDescriptionGenerated(data.description);
       }
-      
+
       toast({
         title: "Description Generated",
         description: "AI has created a new property description for you.",
       });
     } catch (error) {
+      const message = error instanceof Error 
+        ? error.message
+        : "Failed to generate description. Please try again.";
+
       toast({
         title: "Error",
-        description: "Failed to generate description. Please try again.",
+        description: message.includes("rate limit")
+          ? "Too many requests. Please wait a few seconds and try again."
+          : message,
         variant: "destructive",
       });
     } finally {
@@ -70,10 +83,16 @@ export function AIPropertyHelper({
       const response = await fetch("/api/ai/pricing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(property),
+        body: JSON.stringify({
+          ...property,
+          amenities: property.amenities || []
+        }),
       });
 
-      if (!response.ok) throw new Error("Failed to analyze price");
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to analyze price");
+      }
 
       const pricing = await response.json();
       if (onPriceAnalyzed) {
@@ -85,9 +104,15 @@ export function AIPropertyHelper({
         description: `Suggested price: $${pricing.suggestedPrice}`,
       });
     } catch (error) {
+      const message = error instanceof Error 
+        ? error.message
+        : "Failed to analyze price. Please try again.";
+
       toast({
         title: "Error",
-        description: "Failed to analyze price. Please try again.",
+        description: message.includes("rate limit")
+          ? "Too many requests. Please wait a few seconds and try again."
+          : message,
         variant: "destructive",
       });
     } finally {
