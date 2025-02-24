@@ -56,8 +56,8 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
     if (selectedImages.length === 0) return [];
 
     const formData = new FormData();
-    selectedImages.forEach((file, index) => {
-      formData.append(`image${index}`, file);
+    selectedImages.forEach(file => {
+      formData.append('images', file); 
     });
 
     try {

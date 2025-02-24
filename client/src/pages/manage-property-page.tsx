@@ -372,8 +372,8 @@ export default function ManagePropertyPage() {
                               if (!e.target.files?.length) return;
 
                               const formData = new FormData();
-                              Array.from(e.target.files).forEach((file, index) => {
-                                formData.append(`image${index}`, file);
+                              Array.from(e.target.files).forEach(file => {
+                                formData.append('images', file); // Changed from image${index} to images
                               });
 
                               try {
