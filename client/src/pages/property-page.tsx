@@ -30,6 +30,16 @@ export default function PropertyPage() {
     enabled: !!id,
   });
 
+  const handleBack = () => {
+    // If user is logged in, likely came from dashboard
+    if (user) {
+      setLocation("/dashboard");
+    } else {
+      // Otherwise, return to home
+      setLocation("/");
+    }
+  };
+
   const bookingMutation = useMutation({
     mutationFn: async () => {
       if (!dateRange?.from || !dateRange?.to) {
@@ -72,7 +82,7 @@ export default function PropertyPage() {
       <Button 
         variant="ghost" 
         className="mb-6"
-        onClick={() => setLocation(-1)}
+        onClick={handleBack}
       >
         <X className="h-4 w-4 mr-2" />
         Close
