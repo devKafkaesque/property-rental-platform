@@ -3,29 +3,125 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 215 25% 27%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 27%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 27%;
+    --primary: 215 90% 22%;
+    --primary-foreground: 210 20% 98%;
+    --primary-muted: 215 90% 92%;
+    --primary-hover: 215 90% 32%;
+    --secondary: 215 25% 27%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 25% 97%;
+    --muted-foreground: 215 25% 47%;
+    --accent: 215 25% 97%;
+    --accent-foreground: 215 25% 27%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 25% 87%;
+    --input: 215 25% 87%;
+    --ring: 215 90% 22%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 215 25% 12%;
+    --foreground: 210 20% 98%;
+    --card: 215 25% 12%;
+    --card-foreground: 210 20% 98%;
+    --popover: 215 25% 12%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 215 90% 52%;
+    --primary-foreground: 210 20% 98%;
+    --primary-muted: 215 90% 22%;
+    --primary-hover: 215 90% 62%;
+    --secondary: 215 25% 87%;
+    --secondary-foreground: 215 25% 12%;
+    --muted: 215 25% 27%;
+    --muted-foreground: 215 25% 87%;
+    --accent: 215 25% 27%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 25% 27%;
+    --input: 215 25% 27%;
+    --ring: 215 90% 52%;
+  }
+}
+
+@layer base {
   * {
     @apply border-border;
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Typography */
+  h1 {
+    @apply scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl;
+  }
+
+  h2 {
+    @apply scroll-m-20 text-3xl font-semibold tracking-tight first:mt-0;
+  }
+
+  h3 {
+    @apply scroll-m-20 text-2xl font-semibold tracking-tight;
+  }
+
+  h4 {
+    @apply scroll-m-20 text-xl font-semibold tracking-tight;
+  }
+
+  p {
+    @apply leading-7 [&:not(:first-child)]:mt-6;
+  }
+
+  /* Smooth transitions */
+  .transition-colors,
+  .transition-transform,
+  .transition-opacity {
+    @apply duration-200 ease-in-out;
   }
 }
 
-/* Embla Carousel Styles */
+/* Enhanced Embla Carousel Styles */
 .embla {
-  overflow: hidden;
+  @apply relative overflow-hidden;
 }
 
 .embla__container {
-  display: flex;
-  user-select: none;
+  @apply flex select-none touch-pan-y;
   -webkit-touch-callout: none;
   -khtml-user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 
 .embla__slide {
-  position: relative;
-  min-width: 100%;
+  @apply relative min-w-0 flex-[0_0_100%];
+}
+
+/* Loading States */
+.loading-skeleton {
+  @apply animate-pulse bg-muted rounded;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  @apply w-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary/50 rounded-full hover:bg-primary/70;
 }
