@@ -35,6 +35,7 @@ async function withRetry<T>(operation: () => Promise<T>): Promise<T> {
   throw lastError;
 }
 
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 export async function getPropertyRecommendations(
   preferences: {
     budget: number;
@@ -47,7 +48,7 @@ export async function getPropertyRecommendations(
 }> {
   try {
     const completion = await withRetry(async () => openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       response_format: { type: "json_object" },
       messages: [
         {
@@ -86,7 +87,7 @@ export async function generatePropertyDescription(
 }> {
   try {
     const completion = await withRetry(async () => openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       response_format: { type: "json_object" },
       messages: [
         {
@@ -135,7 +136,7 @@ export async function analyzePricing(
 }> {
   try {
     const completion = await withRetry(async () => openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o",
       response_format: { type: "json_object" },
       messages: [
         {
