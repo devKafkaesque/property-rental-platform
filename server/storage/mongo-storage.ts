@@ -28,7 +28,7 @@ export class MongoStorage implements IStorage {
   async createUser(user: InsertUser): Promise<User> {
     const lastUser = await UserModel.findOne().sort({ id: -1 });
     const newId = (lastUser?.id || 0) + 1;
-    
+
     const newUser = new UserModel({
       ...user,
       id: newId,
@@ -41,7 +41,7 @@ export class MongoStorage implements IStorage {
   async createProperty(property: Omit<Property, "id" | "createdAt">): Promise<Property> {
     const lastProperty = await PropertyModel.findOne().sort({ id: -1 });
     const newId = (lastProperty?.id || 0) + 1;
-    
+
     const newProperty = new PropertyModel({
       ...property,
       id: newId,
@@ -56,6 +56,7 @@ export class MongoStorage implements IStorage {
   }
 
   async getPropertyById(id: number): Promise<Property | undefined> {
+    if (isNaN(id)) return undefined;
     const property = await PropertyModel.findOne({ id });
     return property ? property.toObject() : undefined;
   }
@@ -79,7 +80,7 @@ export class MongoStorage implements IStorage {
   async createBooking(booking: Omit<Booking, "id" | "createdAt" | "status">): Promise<Booking> {
     const lastBooking = await BookingModel.findOne().sort({ id: -1 });
     const newId = (lastBooking?.id || 0) + 1;
-    
+
     const newBooking = new BookingModel({
       ...booking,
       id: newId,
