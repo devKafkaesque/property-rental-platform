@@ -1,9 +1,21 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
-import { Property } from "@shared/schema";
+import { Property, insertPropertySchema } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Home, Hotel, Castle, Loader2 } from "lucide-react";
+import { Building2, Home, Hotel, Castle, Loader2, ArrowLeft, Edit2, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useState } from "react";
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
   if (category === "luxury") return Castle;
@@ -16,10 +28,43 @@ export default function ManagePropertyPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
 
   const { data: property, isLoading } = useQuery<Property>({
     queryKey: [`/api/properties/${id}`],
     enabled: !!id,
+  });
+
+  const form = useForm({
+    resolver: zodResolver(insertPropertySchema),
+    defaultValues: {
+      name: property?.name || "",
+      description: property?.description || "",
+      address: property?.address || "",
+      type: property?.type || "house",
+      furnished: property?.furnished || "full",
+      wifi: property?.wifi || false,
+      restrictions: property?.restrictions || {},
+      condition: property?.condition || "",
+      category: property?.category || "standard",
+    },
+  });
+
+  const updatePropertyMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("PATCH", `/api/properties/${id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/properties/${id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/properties/owner/${user?.id}`] });
+      toast({
+        title: "Property updated",
+        description: "Your property has been updated successfully.",
+      });
+      setIsEditing(false);
+    },
   });
 
   if (isLoading) {
@@ -45,8 +90,18 @@ export default function ManagePropertyPage() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="container mx-auto max-w-5xl">
-        <h1 className="text-3xl font-bold mb-6">Manage Property</h1>
-        
+        {/* Header with back button */}
+        <div className="flex items-center justify-between mb-6">
+          <Button variant="ghost" onClick={() => setLocation("/dashboard")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </Button>
+          <Button onClick={() => setIsEditing(true)}>
+            <Edit2 className="h-4 w-4 mr-2" />
+            Edit Property
+          </Button>
+        </div>
+
         <div className="grid md:grid-cols-2 gap-8">
           <div className={`
             h-[400px] rounded-lg flex items-center justify-center
@@ -62,46 +117,233 @@ export default function ManagePropertyPage() {
             `} />
           </div>
 
-          <div>
+          <div className="space-y-6">
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Property Details</CardTitle>
+                <span className={`
+                  px-2 py-1 rounded-full text-sm font-medium
+                  ${property.category === "luxury" ? "bg-amber-100 text-amber-800" :
+                    property.category === "standard" ? "bg-blue-100 text-blue-800" :
+                    "bg-green-100 text-green-800"}
+                `}>
+                  {property.category.charAt(0).toUpperCase() + property.category.slice(1)}
+                </span>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <h3 className="font-semibold">Name</h3>
-                  <p>{property.name}</p>
+                  <h3 className="font-semibold text-lg">{property.name}</h3>
+                  <p className="text-muted-foreground">{property.description}</p>
                 </div>
-                <div>
-                  <h3 className="font-semibold">Description</h3>
-                  <p>{property.description}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold">Address</h3>
-                  <p>{property.address}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold">Property Type</h3>
-                  <p>{property.type} - {property.furnished}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold">Category</h3>
-                  <p>{property.category}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold">Status</h3>
-                  <p>{property.status}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold">Amenities</h3>
-                  <p>WiFi: {property.wifi ? "Yes" : "No"}</p>
-                </div>
-                <div>
-                  <h3 className="font-semibold">Condition</h3>
-                  <p>{property.condition}</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="font-medium">Address</h4>
+                    <p className="text-sm text-muted-foreground">{property.address}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Property Type</h4>
+                    <p className="text-sm text-muted-foreground">{property.type} - {property.furnished}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">WiFi</h4>
+                    <p className="text-sm text-muted-foreground">{property.wifi ? "Available" : "Not Available"}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Condition</h4>
+                    <p className="text-sm text-muted-foreground">{property.condition}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Edit Property Dialog */}
+            <Dialog open={isEditing} onOpenChange={setIsEditing}>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Edit Property</DialogTitle>
+                </DialogHeader>
+                <Form {...form}>
+                  <form
+                    onSubmit={form.handleSubmit((data) => updatePropertyMutation.mutate(data))}
+                    className="space-y-4"
+                  >
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Property Name</FormLabel>
+                          <FormControl>
+                            <Input defaultValue={property.name} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              defaultValue={property.description}
+                              className="min-h-[100px]"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="address"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Address</FormLabel>
+                          <FormControl>
+                            <Input defaultValue={property.address} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="type"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Property Type</FormLabel>
+                            <Select defaultValue={property.type} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="house">House</SelectItem>
+                                <SelectItem value="apartment">Apartment</SelectItem>
+                                <SelectItem value="villa">Villa</SelectItem>
+                                <SelectItem value="studio">Studio</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="furnished"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Furnished Status</FormLabel>
+                            <Select defaultValue={property.furnished} onValueChange={field.onChange}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="full">Fully Furnished</SelectItem>
+                                <SelectItem value="semi">Semi Furnished</SelectItem>
+                                <SelectItem value="unfurnished">Unfurnished</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <FormField
+                      control={form.control}
+                      name="wifi"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">WiFi Available</FormLabel>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              defaultChecked={property.wifi}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="condition"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Property Condition</FormLabel>
+                          <FormControl>
+                            <Input defaultValue={property.condition} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Category</FormLabel>
+                          <Select defaultValue={property.category} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="luxury">Luxury</SelectItem>
+                              <SelectItem value="standard">Standard</SelectItem>
+                              <SelectItem value="budget">Budget</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="flex justify-end gap-4 pt-4">
+                      <Button variant="outline" type="button" onClick={() => setIsEditing(false)}>
+                        <X className="h-4 w-4 mr-2" />
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={updatePropertyMutation.isPending}
+                      >
+                        {updatePropertyMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Updating...
+                          </>
+                        ) : (
+                          <>
+                            <Edit2 className="h-4 w-4 mr-2" />
+                            Update Property
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>
