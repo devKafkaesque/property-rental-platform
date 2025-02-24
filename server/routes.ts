@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { getPropertyRecommendations, generatePropertyDescription } from "./openai";
+import { getPropertyRecommendations, generatePropertyDescription, analyzePricing } from "./openai";
 import { insertPropertySchema, insertBookingSchema, insertReviewSchema, insertViewingRequestSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
@@ -152,8 +152,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/ai/description", ensureLandowner, async (req, res) => {
-    const description = await generatePropertyDescription(req.body);
-    res.json({ description });
+    try {
+      const description = await generatePropertyDescription(req.body);
+      res.json(description);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(500).json({ error: errorMessage });
+    }
+  });
+
+  app.post("/api/ai/pricing", ensureLandowner, async (req, res) => {
+    try {
+      const pricing = await analyzePricing(req.body);
+      res.json(pricing);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(500).json({ error: errorMessage });
+    }
   });
 
   // Viewing Request routes
@@ -175,8 +190,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
 
     if (hasRecentRequest) {
-      return res.status(403).json({ 
-        error: "You can only request one viewing per property per month" 
+      return res.status(403).json({
+        error: "You can only request one viewing per property per month"
       });
     }
 
@@ -222,8 +237,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const validViewing = completedViewings.find(v => v.id === data.viewingId);
 
     if (!validViewing) {
-      return res.status(403).json({ 
-        error: "You can only review properties after completing a viewing" 
+      return res.status(403).json({
+        error: "You can only review properties after completing a viewing"
       });
     }
 
