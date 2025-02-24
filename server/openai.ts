@@ -1,11 +1,12 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 
-if (!process.env.GOOGLE_API_KEY) {
-  throw new Error("GOOGLE_API_KEY environment variable is not set. Please configure your Google API key.");
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error("OPENAI_API_KEY environment variable is not set. Please configure your OpenAI API key.");
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 // Retry configuration
 const INITIAL_RETRY_DELAY = 1000; // 1 second
@@ -45,22 +46,24 @@ export async function getPropertyRecommendations(
   score: number;
 }> {
   try {
-    const prompt = `You are a real estate expert. Analyze the following property preferences and provide recommendations with a matching score (0-1) and explanation. Format your response as JSON with two fields: explanation (string) and score (number between 0 and 1).
+    const completion = await withRetry(async () => openai.chat.completions.create({
+      model: "gpt-4",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are a real estate expert. Analyze the property preferences and provide recommendations with a matching score and explanation. Respond with JSON containing 'explanation' (string) and 'score' (number between 0 and 1)."
+        },
+        {
+          role: "user",
+          content: `Analyze these property preferences: ${JSON.stringify(preferences)}`
+        }
+      ]
+    }));
 
-Property details: ${JSON.stringify(preferences)}`;
-
-    const result = await withRetry(async () => model.generateContent(prompt));
-    const response = await result.response;
-    const text = response.text();
-
-    try {
-      return JSON.parse(text);
-    } catch (parseError) {
-      console.error("Failed to parse Gemini response:", text);
-      throw new Error("Invalid response format from AI service");
-    }
+    return JSON.parse(completion.choices[0].message.content!);
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("OpenAI API Error:", error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     throw new Error("Failed to get recommendations: " + errorMessage);
   }
@@ -82,33 +85,27 @@ export async function generatePropertyDescription(
   seoKeywords: string[];
 }> {
   try {
-    console.log("Generating description for:", JSON.stringify(details, null, 2));
+    const completion = await withRetry(async () => openai.chat.completions.create({
+      model: "gpt-4",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert real estate copywriter specializing in SEO-optimized property descriptions. Create engaging descriptions that highlight key features. Respond with JSON containing 'description' (2-3 paragraphs), 'highlights' (3-5 key points), and 'seoKeywords' (relevant SEO terms)."
+        },
+        {
+          role: "user",
+          content: `Create a property description for: ${JSON.stringify({
+            ...details,
+            amenities: details.amenities || []
+          })}`
+        }
+      ]
+    }));
 
-    const prompt = `You are an expert real estate copywriter specializing in SEO-optimized property descriptions. 
-    Create an engaging, detailed property description that highlights key features and appeals to potential tenants.
-    Format your response as a JSON object with three fields:
-    - description: A compelling 2-3 paragraph description
-    - highlights: An array of 3-5 key selling points
-    - seoKeywords: An array of relevant SEO keywords for the listing
-
-    Property details: ${JSON.stringify({
-      ...details,
-      features: [],
-      amenities: details.amenities || []
-    })}`;
-
-    const result = await withRetry(async () => model.generateContent(prompt));
-    const response = await result.response;
-    const text = response.text();
-
-    try {
-      return JSON.parse(text);
-    } catch (parseError) {
-      console.error("Failed to parse Gemini response:", text);
-      throw new Error("Invalid response format from AI service");
-    }
+    return JSON.parse(completion.choices[0].message.content!);
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("OpenAI API Error:", error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     throw new Error("Failed to generate description: " + errorMessage);
   }
@@ -137,42 +134,36 @@ export async function analyzePricing(
   marketInsights: string[];
 }> {
   try {
-    console.log("Analyzing pricing for:", JSON.stringify(propertyDetails, null, 2));
-
-    const prompt = `You are an expert real estate pricing analyst. Analyze the property details and market data to suggest optimal rental pricing.
-    Consider location, property features, market trends, and amenities.
-    Format your response as a JSON object with fields:
-    - suggestedPrice: A specific recommended monthly rental price (number)
-    - priceRange: Object with min and max monthly rental prices (numbers)
-    - justification: A brief explanation of the pricing recommendation
-    - marketInsights: Array of key market insights that influenced the price
-
-    Property details: ${JSON.stringify({
-      ...propertyDetails,
-      amenities: propertyDetails.amenities || []
-    })}`;
-
-    const result = await withRetry(async () => model.generateContent(prompt));
-    const response = await result.response;
-    const text = response.text();
-
-    try {
-      const pricing = JSON.parse(text);
-      return {
-        suggestedPrice: Math.round(pricing.suggestedPrice),
-        priceRange: {
-          min: Math.round(pricing.priceRange.min),
-          max: Math.round(pricing.priceRange.max),
+    const completion = await withRetry(async () => openai.chat.completions.create({
+      model: "gpt-4",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert real estate pricing analyst. Analyze property details and market data to suggest optimal rental pricing. Respond with JSON containing 'suggestedPrice' (number), 'priceRange' (object with min/max), 'justification' (string), and 'marketInsights' (array of strings)."
         },
-        justification: pricing.justification,
-        marketInsights: pricing.marketInsights,
-      };
-    } catch (parseError) {
-      console.error("Failed to parse Gemini response:", text);
-      throw new Error("Invalid response format from AI service");
-    }
+        {
+          role: "user",
+          content: `Analyze pricing for this property: ${JSON.stringify({
+            ...propertyDetails,
+            amenities: propertyDetails.amenities || []
+          })}`
+        }
+      ]
+    }));
+
+    const pricing = JSON.parse(completion.choices[0].message.content!);
+    return {
+      suggestedPrice: Math.round(pricing.suggestedPrice),
+      priceRange: {
+        min: Math.round(pricing.priceRange.min),
+        max: Math.round(pricing.priceRange.max),
+      },
+      justification: pricing.justification,
+      marketInsights: pricing.marketInsights,
+    };
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("OpenAI API Error:", error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     throw new Error("Failed to analyze pricing: " + errorMessage);
   }
