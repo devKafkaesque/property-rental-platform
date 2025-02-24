@@ -29,34 +29,42 @@ export default function ReviewList({ propertyId }: ReviewListProps) {
     );
   }
 
+  const publishedReviews = reviews.filter(review => review.status === "published");
+
+  if (publishedReviews.length === 0) {
+    return (
+      <div className="text-center text-muted-foreground p-4">
+        No published reviews yet
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {reviews
-        .filter(review => review.status === "published")
-        .map((review) => (
-          <Card key={review.id}>
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-4 w-4 ${
-                        i < review.rating ? "text-yellow-500 fill-current" : "text-muted-foreground"
-                      }`}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  {format(new Date(review.createdAt!), "MMM d, yyyy")}
-                </span>
+      {publishedReviews.map((review) => (
+        <Card key={review.id}>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className={`h-4 w-4 ${
+                      i < review.rating ? "text-yellow-500 fill-current" : "text-muted-foreground"
+                    }`}
+                  />
+                ))}
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm">{review.comment}</p>
-            </CardContent>
-          </Card>
-        ))}
+              <span className="text-sm text-muted-foreground">
+                {format(new Date(review.createdAt!), "MMM d, yyyy")}
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm">{review.comment}</p>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
