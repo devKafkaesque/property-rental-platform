@@ -26,6 +26,7 @@ export default function PropertyPage() {
 
   const { data: property, isLoading } = useQuery<Property>({
     queryKey: [`/api/properties/${id}`],
+    enabled: !!id,
   });
 
   const bookingMutation = useMutation({

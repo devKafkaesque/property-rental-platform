@@ -18,7 +18,10 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (user) {
-      setLocation("/dashboard");
+      // Get the return path from URL search params
+      const params = new URLSearchParams(window.location.search);
+      const returnTo = params.get('returnTo') || '/dashboard';
+      setLocation(returnTo);
     }
   }, [user, setLocation]);
 
