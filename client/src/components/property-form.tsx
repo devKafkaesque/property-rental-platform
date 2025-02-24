@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertPropertySchema } from "@shared/schema";
@@ -13,7 +14,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Upload, X, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { AIPropertyHelper } from "./ai-property-helper";
 
 interface PropertyFormProps {
   onSuccess?: () => void;
@@ -24,6 +25,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
   const { user } = useAuth();
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [suggestedPrice, setSuggestedPrice] = useState<number | null>(null);
 
   const form = useForm({
     resolver: zodResolver(insertPropertySchema),
@@ -40,6 +42,23 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
       images: [],
     },
   });
+
+  const handleDescriptionGenerated = (description: string) => {
+    form.setValue("description", description);
+  };
+
+  const handlePriceAnalyzed = (pricing: {
+    suggestedPrice: number;
+    priceRange: { min: number; max: number };
+    justification: string;
+    marketInsights: string[];
+  }) => {
+    setSuggestedPrice(pricing.suggestedPrice);
+    toast({
+      title: "Price Analysis",
+      description: `Suggested price range: $${pricing.priceRange.min} - $${pricing.priceRange.max}\n${pricing.justification}`,
+    });
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -110,10 +129,22 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
 
   return (
     <ScrollArea className="h-[80vh] pr-4">
+      <AIPropertyHelper
+        property={{
+          type: form.watch("type"),
+          location: form.watch("address"),
+          features: [],
+          condition: form.watch("condition"),
+          amenities: [form.watch("wifi") ? "WiFi" : ""].filter(Boolean),
+        }}
+        onDescriptionGenerated={handleDescriptionGenerated}
+        onPriceAnalyzed={handlePriceAnalyzed}
+      />
+
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit((data) => createPropertyMutation.mutate(data))}
-          className="space-y-4"
+          className="space-y-4 mt-6"
         >
           <FormField
             control={form.control}
@@ -307,6 +338,12 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
               </div>
             )}
           </div>
+
+          {suggestedPrice && (
+            <div className="p-4 border rounded-lg bg-muted/50 mb-4">
+              <p className="font-medium">AI Suggested Price: ${suggestedPrice}</p>
+            </div>
+          )}
 
           <Button
             type="submit"
