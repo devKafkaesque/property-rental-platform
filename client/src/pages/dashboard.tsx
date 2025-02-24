@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import ViewingRequestManagement from "@/components/viewing-request-management";
 
 export default function Dashboard() {
   const { user, logoutMutation } = useAuth();
@@ -55,8 +56,8 @@ export default function Dashboard() {
           <h1 className="text-4xl font-bold">
             Welcome, {user.username}!
           </h1>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => {
               logoutMutation.mutate(undefined, {
                 onSuccess: () => setLocation("/auth")
@@ -91,7 +92,7 @@ export default function Dashboard() {
                 </Dialog>
               </div>
 
-              <PropertySearch 
+              <PropertySearch
                 onSearch={(query, category) => {
                   setSearchQuery(query);
                   setSelectedCategory(category);
@@ -103,7 +104,7 @@ export default function Dashboard() {
           {user.role === "tenant" && (
             <>
               <h2 className="text-2xl font-semibold">Available Properties</h2>
-              <PropertySearch 
+              <PropertySearch
                 onSearch={(query, category) => {
                   setSearchQuery(query);
                   setSelectedCategory(category);
@@ -125,14 +126,32 @@ export default function Dashboard() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredProperties?.map((property) => (
-                    <PropertyCard 
-                      key={property.id} 
-                      property={property} 
-                      isOwner={user.role === "landowner"} 
+                    <PropertyCard
+                      key={property.id}
+                      property={property}
+                      isOwner={user.role === "landowner"}
                     />
                   ))}
                 </div>
               )}
+            </>
+          )}
+
+          {user.role === "landowner" && properties && properties.length > 0 && (
+            <>
+              <h2 className="text-2xl font-semibold mt-12 mb-6">Property Viewing Requests</h2>
+              <div className="grid gap-6">
+                {properties.map((property) => (
+                  <Card key={property.id}>
+                    <CardHeader>
+                      <CardTitle>{property.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ViewingRequestManagement propertyId={property.id} />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </>
           )}
 
