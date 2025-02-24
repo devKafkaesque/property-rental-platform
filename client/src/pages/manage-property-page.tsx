@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Home, Hotel, Castle, Loader2, ArrowLeft, Edit2, X } from "lucide-react";
+import { Building2, Home, Hotel, Castle, Loader2, ArrowLeft, Edit2, X, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -48,6 +48,7 @@ export default function ManagePropertyPage() {
       restrictions: property?.restrictions || {},
       condition: property?.condition || "",
       category: property?.category || "standard",
+      images: property?.images || [], //Added to handle default images
     },
   });
 
@@ -105,13 +106,13 @@ export default function ManagePropertyPage() {
         <div className="grid md:grid-cols-2 gap-8">
           <div className={`
             h-[400px] rounded-lg flex items-center justify-center
-            ${property.category === "luxury" ? "bg-gradient-to-br from-amber-100 to-amber-500" : 
+            ${property.category === "luxury" ? "bg-gradient-to-br from-amber-100 to-amber-500" :
               property.category === "standard" ? "bg-gradient-to-br from-blue-100 to-blue-500" :
               "bg-gradient-to-br from-green-100 to-green-500"}
           `}>
             <PropertyIcon className={`
-              h-48 w-48 
-              ${property.category === "luxury" ? "text-amber-700" : 
+              h-48 w-48
+              ${property.category === "luxury" ? "text-amber-700" :
                 property.category === "standard" ? "text-blue-700" :
                 "text-green-700"}
             `} />
@@ -317,6 +318,89 @@ export default function ManagePropertyPage() {
                         </FormItem>
                       )}
                     />
+
+                    {/* Add Image Upload Section */}
+                    <div className="space-y-4">
+                      <FormLabel>Property Images</FormLabel>
+
+                      {/* Display Existing Images */}
+                      {property.images && property.images.length > 0 && (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                          {property.images.map((imageUrl, index) => (
+                            <div key={index} className="relative group">
+                              <img
+                                src={imageUrl}
+                                alt={`Property ${index + 1}`}
+                                className="w-full h-24 object-cover rounded-lg"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newImages = property.images.filter((_, i) => i !== index);
+                                  updatePropertyMutation.mutate({
+                                    ...property,
+                                    images: newImages,
+                                  });
+                                }}
+                                className="absolute top-1 right-1 bg-background/80 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Upload New Images */}
+                      <div className="flex items-center justify-center w-full">
+                        <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50">
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <Upload className="w-8 h-8 mb-2" />
+                            <p className="mb-2 text-sm">
+                              <span className="font-semibold">Click to upload</span> or drag and drop
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              PNG, JPG or WEBP (MAX. 5MB each)
+                            </p>
+                          </div>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            multiple
+                            onChange={async (e) => {
+                              if (!e.target.files?.length) return;
+
+                              const formData = new FormData();
+                              Array.from(e.target.files).forEach((file, index) => {
+                                formData.append(`image${index}`, file);
+                              });
+
+                              try {
+                                const res = await fetch("/api/upload", {
+                                  method: "POST",
+                                  body: formData,
+                                });
+
+                                if (!res.ok) throw new Error("Failed to upload images");
+
+                                const { urls } = await res.json();
+                                updatePropertyMutation.mutate({
+                                  ...property,
+                                  images: [...(property.images || []), ...urls],
+                                });
+                              } catch (error) {
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to upload images",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </div>
 
                     <div className="flex justify-end gap-4 pt-4">
                       <Button variant="outline" type="button" onClick={() => setIsEditing(false)}>

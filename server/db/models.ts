@@ -32,6 +32,7 @@ const propertySchema = new Schema({
   status: { type: String, default: "available" },
   category: { type: String, required: true, enum: ["luxury", "standard", "budget"] },
   ownerId: { type: Number, required: true },
+  images: { type: [String], default: [] },
   createdAt: { type: Date, default: Date.now },
 });
 

@@ -11,7 +11,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";  // Fixed import path
+import { useAuth } from "@/hooks/use-auth";
+import { Upload, X, Loader2 } from "lucide-react";
+import { useState } from "react";
 
 interface PropertyFormProps {
   onSuccess?: () => void;
@@ -20,6 +22,8 @@ interface PropertyFormProps {
 export default function PropertyForm({ onSuccess }: PropertyFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(insertPropertySchema),
@@ -33,16 +37,68 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
       restrictions: {},
       condition: "",
       category: "standard",
+      images: [],
     },
   });
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      setSelectedImages(files);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadImages = async () => {
+    if (selectedImages.length === 0) return [];
+
+    const formData = new FormData();
+    selectedImages.forEach((file, index) => {
+      formData.append(`image${index}`, file);
+    });
+
+    try {
+      setUploading(true);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Failed to upload images");
+
+      const data = await res.json();
+      return data.urls;
+    } catch (error) {
+      console.error("Error uploading images:", error);
+      throw error;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const createPropertyMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", "/api/properties", data);
-      return res.json();
+      try {
+        const imageUrls = await uploadImages();
+        const propertyData = {
+          ...data,
+          images: imageUrls,
+        };
+        const res = await apiRequest("POST", "/api/properties", propertyData);
+        return res.json();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to upload images or create property",
+          variant: "destructive",
+        });
+        throw error;
+      }
     },
     onSuccess: () => {
-      // Invalidate the owner's properties query
       queryClient.invalidateQueries({ queryKey: [`/api/properties/owner/${user?.id}`] });
       toast({
         title: "Property created",
@@ -207,12 +263,64 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
             )}
           />
 
+          <div className="space-y-4">
+            <FormLabel>Property Images</FormLabel>
+            <div className="flex items-center justify-center w-full">
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                  <Upload className="w-8 h-8 mb-2" />
+                  <p className="mb-2 text-sm">
+                    <span className="font-semibold">Click to upload</span> or drag and drop
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    PNG, JPG or WEBP (MAX. 5MB each)
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageChange}
+                />
+              </label>
+            </div>
+
+            {selectedImages.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                {selectedImages.map((file, index) => (
+                  <div key={index} className="relative group">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={`Preview ${index + 1}`}
+                      className="w-full h-24 object-cover rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-1 right-1 bg-background/80 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <Button
             type="submit"
             className="w-full mt-6"
-            disabled={createPropertyMutation.isPending}
+            disabled={createPropertyMutation.isPending || uploading}
           >
-            {createPropertyMutation.isPending ? "Creating..." : "Create Property"}
+            {(createPropertyMutation.isPending || uploading) ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                {uploading ? "Uploading Images..." : "Creating Property..."}
+              </>
+            ) : (
+              "Create Property"
+            )}
           </Button>
         </form>
       </Form>

@@ -28,6 +28,7 @@ export const properties = pgTable("properties", {
   status: text("status").default("available"),
   category: text("category").notNull().$type<PropertyCategory>(),
   ownerId: integer("owner_id").notNull(),
+  images: text("images").array().default([]),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -57,6 +58,7 @@ export const insertPropertySchema = createInsertSchema(properties).pick({
   restrictions: true,
   condition: true,
   category: true,
+  images: true,
 });
 
 export const insertBookingSchema = createInsertSchema(bookings).pick({

@@ -4,6 +4,14 @@ import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { getPropertyRecommendations, generatePropertyDescription } from "./openai";
 import { insertPropertySchema, insertBookingSchema } from "@shared/schema";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import express from "express";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) return next();
@@ -15,6 +23,38 @@ function ensureLandowner(req: Request, res: Response, next: NextFunction) {
   res.status(403).end();
 }
 
+// Configure multer for image uploads
+const multerStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, '..', 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: multerStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
+    }
+  }
+});
+
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
@@ -24,7 +64,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const property = await storage.createProperty({
       ...data,
       ownerId: req.user!.id,
-      available: true,
+      status: "available", // Add default status
     });
     res.json(property);
   });
@@ -44,6 +84,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const properties = await storage.getPropertiesByOwner(Number(req.params.id));
     res.json(properties);
   });
+
+  app.patch("/api/properties/:id", ensureLandowner, async (req, res) => {
+    const property = await storage.getPropertyById(Number(req.params.id));
+    if (!property) return res.status(404).end();
+    if (property.ownerId !== req.user!.id) return res.status(403).end();
+
+    const data = insertPropertySchema.parse(req.body);
+    const updatedProperty = await storage.updateProperty(Number(req.params.id), {
+      ...data,
+      status: property.status, // Preserve the existing status
+    });
+    res.json(updatedProperty);
+  });
+
+  // Image upload route
+  app.post("/api/upload", ensureAuthenticated, upload.array('images', 10), async (req, res) => {
+    try {
+      const files = req.files as Express.Multer.File[];
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: 'No files uploaded' });
+      }
+
+      const urls = files.map(file => `/uploads/${file.filename}`);
+      res.json({ urls });
+    } catch (error) {
+      console.error('Upload error:', error);
+      res.status(500).json({ error: 'Failed to upload files' });
+    }
+  });
+
+  // Serve uploaded files
+  app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
   // Booking routes
   app.post("/api/bookings", ensureAuthenticated, async (req, res) => {
