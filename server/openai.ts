@@ -35,7 +35,6 @@ async function withRetry<T>(operation: () => Promise<T>): Promise<T> {
   throw lastError;
 }
 
-// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
 export async function getPropertyRecommendations(
   preferences: {
     budget: number;
@@ -48,22 +47,17 @@ export async function getPropertyRecommendations(
 }> {
   try {
     const completion = await withRetry(async () => openai.chat.completions.create({
-      model: "gpt-4o",
-      temperature: 0.2, // Lower temperature for more consistent, structured output
+      model: "gpt-3.5-turbo",
+      temperature: 0.2,
       response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content: `You are a real estate expert. Analyze property preferences and provide recommendations.
-          Return a JSON object with exactly these fields:
-          {
-            "explanation": "A detailed explanation string",
-            "score": 0.85 // A number between 0 and 1
-          }`
+          content: `Analyze property preferences and return: {"explanation": "brief explanation", "score": 0.85}`
         },
         {
           role: "user",
-          content: `Analyze these property preferences: ${JSON.stringify(preferences)}`
+          content: `Rate match for preferences: ${JSON.stringify(preferences)}`
         }
       ]
     }));
@@ -107,23 +101,21 @@ export async function generatePropertyDescription(
 }> {
   try {
     const completion = await withRetry(async () => openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-3.5-turbo",
       temperature: 0.3,
       response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content: `You are a real estate copywriter. Create property descriptions.
-          Return a JSON object with exactly these fields:
-          {
-            "description": "A 2-3 paragraph description string",
-            "highlights": ["3-5 key points as strings"],
-            "seoKeywords": ["relevant SEO terms as strings"]
+          content: `Create property description and return: {
+            "description": "2-3 sentences",
+            "highlights": ["3 key points"],
+            "seoKeywords": ["3-5 terms"]
           }`
         },
         {
           role: "user",
-          content: `Create a property description for: ${JSON.stringify({
+          content: `Describe property: ${JSON.stringify({
             ...details,
             amenities: details.amenities || []
           })}`
@@ -177,27 +169,22 @@ export async function analyzePricing(
 }> {
   try {
     const completion = await withRetry(async () => openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-3.5-turbo",
       temperature: 0.2,
       response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
-          content: `You are a real estate pricing analyst. Analyze properties and suggest prices.
-          Return a JSON object with exactly these fields:
-          {
-            "suggestedPrice": 2500, // A number
-            "priceRange": {
-              "min": 2300, // A number
-              "max": 2700  // A number
-            },
-            "justification": "Price reasoning string",
-            "marketInsights": ["Market insight strings"]
+          content: `Analyze property pricing and return: {
+            "suggestedPrice": 2500,
+            "priceRange": {"min": 2300, "max": 2700},
+            "justification": "1-2 sentences",
+            "marketInsights": ["2-3 key points"]
           }`
         },
         {
           role: "user",
-          content: `Analyze pricing for this property: ${JSON.stringify({
+          content: `Suggest price for: ${JSON.stringify({
             ...propertyDetails,
             amenities: propertyDetails.amenities || []
           })}`
