@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";  // Fixed import path
 
 interface PropertyFormProps {
   onSuccess?: () => void;
@@ -18,6 +19,7 @@ interface PropertyFormProps {
 
 export default function PropertyForm({ onSuccess }: PropertyFormProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const form = useForm({
     resolver: zodResolver(insertPropertySchema),
@@ -40,7 +42,8 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
+      // Invalidate the owner's properties query
+      queryClient.invalidateQueries({ queryKey: [`/api/properties/owner/${user?.id}`] });
       toast({
         title: "Property created",
         description: "Your property has been listed successfully.",

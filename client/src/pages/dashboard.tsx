@@ -22,7 +22,7 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
 
   const { data: properties, isLoading: propertiesLoading } = useQuery<Property[]>({
-    queryKey: ["/api/properties/owner", user?.id],
+    queryKey: [`/api/properties/owner/${user?.id}`],
     enabled: user?.role === "landowner",
   });
 
