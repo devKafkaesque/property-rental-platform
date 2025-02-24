@@ -1,6 +1,7 @@
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const openai = new OpenAI({ baseURL: "https://api.x.ai/v1", apiKey: process.env.XAI_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || "");
+const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
 // Retry configuration
 const INITIAL_RETRY_DELAY = 1000; // 1 second
@@ -39,45 +40,26 @@ export async function getPropertyRecommendations(
   explanation: string;
   score: number;
 }> {
-  return withRetry(async () => {
-    try {
-      const response = await openai.chat.completions.create({
-        model: "grok-2-1212",
-        messages: [
-          {
-            role: "system",
-            content: "You are a real estate expert. Analyze the property preferences and provide recommendations with a matching score (0-1) and explanation.",
-          },
-          {
-            role: "user",
-            content: JSON.stringify(preferences),
-          },
-        ],
-        response_format: { type: "json_object" },
-      });
+  try {
+    const prompt = `You are a real estate expert. Analyze the following property preferences and provide recommendations with a matching score (0-1) and explanation. Format your response as JSON with two fields: explanation (string) and score (number between 0 and 1).
 
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error("No content in response");
-      }
+Property details: ${JSON.stringify(preferences)}`;
 
-      const result = JSON.parse(content);
-      return {
-        explanation: result.explanation,
-        score: Math.max(0, Math.min(1, result.score)),
-      };
-    } catch (error: unknown) {
-      console.error("xAI API Error:", error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      throw new Error("Failed to get recommendations: " + errorMessage);
-    }
-  });
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new Error("Failed to get recommendations: " + errorMessage);
+  }
 }
 
 export async function generatePropertyDescription(
   details: {
     type: string;
-    features: string[];
     location: string;
     bedrooms?: number;
     bathrooms?: number;
@@ -90,46 +72,33 @@ export async function generatePropertyDescription(
   highlights: string[];
   seoKeywords: string[];
 }> {
-  return withRetry(async () => {
-    try {
-      console.log("Generating description for:", JSON.stringify(details, null, 2));
-      const response = await openai.chat.completions.create({
-        model: "grok-2-1212",
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert real estate copywriter specializing in SEO-optimized property descriptions. 
-            Create an engaging, detailed property description that highlights key features and appeals to potential tenants. 
-            Format the response as a JSON with three fields:
-            - description: A compelling 2-3 paragraph description
-            - highlights: An array of 3-5 key selling points
-            - seoKeywords: An array of relevant SEO keywords for the listing`,
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              ...details,
-              features: details.features || [],
-              amenities: details.amenities || []
-            }),
-          },
-        ],
-        response_format: { type: "json_object" },
-      });
+  try {
+    console.log("Generating description for:", JSON.stringify(details, null, 2));
 
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error("No content in response");
-      }
+    const prompt = `You are an expert real estate copywriter specializing in SEO-optimized property descriptions. 
+    Create an engaging, detailed property description that highlights key features and appeals to potential tenants.
+    Format your response as a JSON object with three fields:
+    - description: A compelling 2-3 paragraph description
+    - highlights: An array of 3-5 key selling points
+    - seoKeywords: An array of relevant SEO keywords for the listing
 
-      console.log("xAI Response:", content);
-      return JSON.parse(content);
-    } catch (error: unknown) {
-      console.error("xAI API Error:", error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      throw new Error("Failed to generate description: " + errorMessage);
-    }
-  });
+    Property details: ${JSON.stringify({
+      ...details,
+      features: [],
+      amenities: details.amenities || []
+    })}`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    console.log("Gemini Response:", text);
+    return JSON.parse(text);
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new Error("Failed to generate description: " + errorMessage);
+  }
 }
 
 export async function analyzePricing(
@@ -154,53 +123,41 @@ export async function analyzePricing(
   justification: string;
   marketInsights: string[];
 }> {
-  return withRetry(async () => {
-    try {
-      console.log("Analyzing pricing for:", JSON.stringify(propertyDetails, null, 2));
-      const response = await openai.chat.completions.create({
-        model: "grok-2-1212",
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert real estate pricing analyst. Analyze the property details and market data to suggest optimal rental pricing.
-            Consider location, property features, market trends, and amenities.
-            Format response as JSON with fields:
-            - suggestedPrice: A specific recommended monthly rental price
-            - priceRange: Object with min and max monthly rental prices
-            - justification: A brief explanation of the pricing recommendation
-            - marketInsights: Array of key market insights that influenced the price`,
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              ...propertyDetails,
-              amenities: propertyDetails.amenities || []
-            }),
-          },
-        ],
-        response_format: { type: "json_object" },
-      });
+  try {
+    console.log("Analyzing pricing for:", JSON.stringify(propertyDetails, null, 2));
 
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error("No content in response");
-      }
+    const prompt = `You are an expert real estate pricing analyst. Analyze the property details and market data to suggest optimal rental pricing.
+    Consider location, property features, market trends, and amenities.
+    Format your response as a JSON object with fields:
+    - suggestedPrice: A specific recommended monthly rental price (number)
+    - priceRange: Object with min and max monthly rental prices (numbers)
+    - justification: A brief explanation of the pricing recommendation
+    - marketInsights: Array of key market insights that influenced the price
 
-      console.log("xAI Response:", content);
-      const result = JSON.parse(content);
-      return {
-        suggestedPrice: Math.round(result.suggestedPrice),
-        priceRange: {
-          min: Math.round(result.priceRange.min),
-          max: Math.round(result.priceRange.max),
-        },
-        justification: result.justification,
-        marketInsights: result.marketInsights,
-      };
-    } catch (error: unknown) {
-      console.error("xAI API Error:", error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      throw new Error("Failed to analyze pricing: " + errorMessage);
-    }
-  });
+    Property details: ${JSON.stringify({
+      ...propertyDetails,
+      amenities: propertyDetails.amenities || []
+    })}`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    console.log("Gemini Response:", text);
+    const pricing = JSON.parse(text);
+
+    return {
+      suggestedPrice: Math.round(pricing.suggestedPrice),
+      priceRange: {
+        min: Math.round(pricing.priceRange.min),
+        max: Math.round(pricing.priceRange.max),
+      },
+      justification: pricing.justification,
+      marketInsights: pricing.marketInsights,
+    };
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new Error("Failed to analyze pricing: " + errorMessage);
+  }
 }
