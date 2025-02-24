@@ -25,6 +25,18 @@ export class MongoStorage implements IStorage {
     return user ? user.toObject() : undefined;
   }
 
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const user = await UserModel.findOne({ email });
+    return user ? user.toObject() : undefined;
+  }
+
+  async getUserByUsernameOrEmail(usernameOrEmail: string): Promise<User | undefined> {
+    const user = await UserModel.findOne({
+      $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }]
+    });
+    return user ? user.toObject() : undefined;
+  }
+
   async createUser(user: InsertUser): Promise<User> {
     const lastUser = await UserModel.findOne().sort({ id: -1 });
     const newId = (lastUser?.id || 0) + 1;

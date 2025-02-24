@@ -14,6 +14,7 @@ export type ReviewStatus = "published" | "pending" | "rejected";
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
   password: text("password").notNull(),
   role: text("role").notNull().$type<UserRole>(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -89,10 +90,16 @@ export const insertReviewSchema = createInsertSchema(reviews).pick({
   comment: z.string().min(10).max(500),
 });
 
+// Update user schema to include email
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
+  email: true,
   password: true,
   role: true,
+}).extend({
+  email: z.string().email("Invalid email format"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  username: z.string().min(3, "Username must be at least 3 characters"),
 });
 
 export const insertPropertySchema = createInsertSchema(properties).pick({
