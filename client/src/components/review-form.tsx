@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Star } from "lucide-react";
+import { Star, Loader2 } from "lucide-react";
 
 interface ReviewFormProps {
   propertyId: number;
@@ -30,7 +30,7 @@ export default function ReviewForm({ propertyId, onSuccess }: ReviewFormProps) {
     resolver: zodResolver(insertReviewSchema),
     defaultValues: {
       propertyId,
-      viewingId: validCompletedViewing?.id,
+      viewingId: validCompletedViewing?.id || 0,
       rating: 5,
       comment: "",
     },
@@ -38,6 +38,9 @@ export default function ReviewForm({ propertyId, onSuccess }: ReviewFormProps) {
 
   const reviewMutation = useMutation({
     mutationFn: async (data: any) => {
+      if (!validCompletedViewing) {
+        throw new Error("You must complete a viewing before submitting a review");
+      }
       const res = await apiRequest("POST", "/api/reviews", data);
       return res.json();
     },
@@ -71,7 +74,7 @@ export default function ReviewForm({ propertyId, onSuccess }: ReviewFormProps) {
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit((data) => reviewMutation.mutate(data))}
-        className="space-y-4"
+        className="space-y-4 mt-4"
       >
         <FormField
           control={form.control}
@@ -121,9 +124,16 @@ export default function ReviewForm({ propertyId, onSuccess }: ReviewFormProps) {
         <Button
           type="submit"
           className="w-full"
-          disabled={reviewMutation.isPending}
+          disabled={reviewMutation.isPending || !validCompletedViewing}
         >
-          Submit Review
+          {reviewMutation.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Submitting...
+            </>
+          ) : (
+            "Submit Review"
+          )}
         </Button>
       </form>
     </Form>
