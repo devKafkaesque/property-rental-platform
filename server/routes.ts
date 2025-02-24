@@ -164,6 +164,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const data = insertViewingRequestSchema.parse(req.body);
+
+    // Check if tenant has made a request for this property in the last month
+    const existingRequests = await storage.getViewingRequestsByTenant(req.user!.id);
+    const hasRecentRequest = existingRequests.some(request => {
+      const requestDate = new Date(request.createdAt);
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      return request.propertyId === data.propertyId && requestDate > oneMonthAgo;
+    });
+
+    if (hasRecentRequest) {
+      return res.status(403).json({ 
+        error: "You can only request one viewing per property per month" 
+      });
+    }
+
     const request = await storage.createViewingRequest({
       ...data,
       tenantId: req.user!.id,

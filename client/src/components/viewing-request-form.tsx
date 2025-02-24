@@ -5,9 +5,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 interface ViewingRequestFormProps {
   propertyId: number;
@@ -16,6 +17,18 @@ interface ViewingRequestFormProps {
 
 export default function ViewingRequestForm({ propertyId, onSuccess }: ViewingRequestFormProps) {
   const { toast } = useToast();
+
+  // Fetch existing viewing requests to check for monthly limit
+  const { data: existingRequests } = useQuery({
+    queryKey: [`/api/viewing-requests/tenant`],
+  });
+
+  const hasRecentRequest = existingRequests?.some(request => {
+    const requestDate = new Date(request.createdAt);
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    return request.propertyId === propertyId && requestDate > oneMonthAgo;
+  });
 
   const form = useForm({
     resolver: zodResolver(insertViewingRequestSchema),
@@ -28,6 +41,9 @@ export default function ViewingRequestForm({ propertyId, onSuccess }: ViewingReq
 
   const viewingRequestMutation = useMutation({
     mutationFn: async (data: any) => {
+      if (hasRecentRequest) {
+        throw new Error("You can only request one viewing per property per month");
+      }
       // Convert date to ISO string before sending
       const formattedData = {
         ...data,
@@ -45,7 +61,23 @@ export default function ViewingRequestForm({ propertyId, onSuccess }: ViewingReq
       form.reset();
       onSuccess?.();
     },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit viewing request",
+        variant: "destructive",
+      });
+    },
   });
+
+  if (hasRecentRequest) {
+    return (
+      <div className="text-muted-foreground text-sm">
+        You have already requested a viewing for this property in the last month. 
+        Please wait before requesting another viewing.
+      </div>
+    );
+  }
 
   return (
     <Form {...form}>
@@ -96,7 +128,14 @@ export default function ViewingRequestForm({ propertyId, onSuccess }: ViewingReq
           className="w-full"
           disabled={viewingRequestMutation.isPending}
         >
-          Request Viewing
+          {viewingRequestMutation.isPending ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Submitting request...
+            </>
+          ) : (
+            "Request Viewing"
+          )}
         </Button>
       </form>
     </Form>
