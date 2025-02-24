@@ -11,6 +11,8 @@ import { Building2, Home, Hotel, Castle, Loader2, X, Wifi, CheckCircle2, Info, M
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import PropertyImageCarousel from "@/components/property-image-carousel";
+import ReviewForm from "@/components/review-form";
+import ReviewList from "@/components/review-list";
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
   if (category === "luxury") return Castle;
@@ -77,8 +79,8 @@ export default function PropertyPage() {
 
   return (
     <div className="min-h-screen bg-background p-6">
-      <Button 
-        variant="ghost" 
+      <Button
+        variant="ghost"
         className="mb-6"
         onClick={handleBack}
       >
@@ -159,26 +161,46 @@ export default function PropertyPage() {
             </Card>
 
             {user?.role === "tenant" && (
-              <Card>
-                <CardContent className="pt-6">
-                  <h3 className="font-semibold mb-4">Book this property</h3>
-                  <Calendar
-                    mode="range"
-                    selected={dateRange}
-                    onSelect={setDateRange}
-                    numberOfMonths={2}
-                    className="rounded-md border"
-                  />
-                  <Button
-                    className="w-full mt-4"
-                    onClick={() => bookingMutation.mutate()}
-                    disabled={bookingMutation.isPending || !dateRange?.from || !dateRange?.to}
-                  >
-                    {bookingMutation.isPending ? "Sending request..." : "Request to Book"}
-                  </Button>
-                </CardContent>
-              </Card>
+              <>
+                <Card>
+                  <CardContent className="pt-6">
+                    <h3 className="font-semibold mb-4">Book this property</h3>
+                    <Calendar
+                      mode="range"
+                      selected={dateRange}
+                      onSelect={setDateRange}
+                      numberOfMonths={2}
+                      className="rounded-md border"
+                    />
+                    <Button
+                      className="w-full mt-4"
+                      onClick={() => bookingMutation.mutate()}
+                      disabled={bookingMutation.isPending || !dateRange?.from || !dateRange?.to}
+                    >
+                      {bookingMutation.isPending ? "Sending request..." : "Request to Book"}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle>Write a Review</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ReviewForm propertyId={Number(id)} />
+                  </CardContent>
+                </Card>
+              </>
             )}
+
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Reviews</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ReviewList propertyId={Number(id)} />
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
-import { User, Property, Booking } from "@shared/schema";
+import { User, Property, Booking, Review } from "@shared/schema";
 
 // User Schema
 export interface UserDocument extends Omit<User, "id">, Document {
@@ -56,7 +56,28 @@ const bookingSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// Add Review Schema
+export interface ReviewDocument extends Omit<Review, "id">, Document {
+  id: number;
+}
+
+const reviewSchema = new Schema({
+  id: { type: Number, required: true, unique: true },
+  propertyId: { type: Number, required: true },
+  tenantId: { type: Number, required: true },
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  comment: { type: String, required: true },
+  status: {
+    type: String,
+    required: true,
+    enum: ["published", "pending", "rejected"],
+    default: "pending"
+  },
+  createdAt: { type: Date, default: Date.now },
+});
+
 // Create and export models
 export const UserModel = mongoose.model<UserDocument>("User", userSchema);
 export const PropertyModel = mongoose.model<PropertyDocument>("Property", propertySchema);
 export const BookingModel = mongoose.model<BookingDocument>("Booking", bookingSchema);
+export const ReviewModel = mongoose.model<ReviewDocument>("Review", reviewSchema);

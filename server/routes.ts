@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { getPropertyRecommendations, generatePropertyDescription } from "./openai";
-import { insertPropertySchema, insertBookingSchema } from "@shared/schema";
+import { insertPropertySchema, insertBookingSchema, insertReviewSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -154,6 +154,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/description", ensureLandowner, async (req, res) => {
     const description = await generatePropertyDescription(req.body);
     res.json({ description });
+  });
+
+  // Review routes
+  app.post("/api/reviews", ensureAuthenticated, async (req, res) => {
+    const data = insertReviewSchema.parse(req.body);
+    const review = await storage.createReview({
+      ...data,
+      tenantId: req.user!.id,
+    });
+    res.json(review);
+  });
+
+  app.get("/api/reviews/property/:id", async (req, res) => {
+    const reviews = await storage.getReviewsByProperty(Number(req.params.id));
+    res.json(reviews);
+  });
+
+  app.get("/api/reviews/tenant", ensureAuthenticated, async (req, res) => {
+    const reviews = await storage.getReviewsByTenant(req.user!.id);
+    res.json(reviews);
+  });
+
+  app.post("/api/reviews/:id/status", ensureLandowner, async (req, res) => {
+    const review = await storage.updateReviewStatus(
+      Number(req.params.id),
+      req.body.status
+    );
+    res.json(review);
   });
 
   const httpServer = createServer(app);

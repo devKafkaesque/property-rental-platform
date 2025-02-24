@@ -1,4 +1,4 @@
-import { User, Property, Booking, InsertUser } from "@shared/schema";
+import { User, Property, Booking, Review, InsertUser } from "@shared/schema";
 import session from "express-session";
 export * from "./storage/mongo-storage";
 import { MongoStorage } from "./storage/mongo-storage";
@@ -20,8 +20,12 @@ export interface IStorage {
   getBookingsByTenant(tenantId: number): Promise<Booking[]>;
   getBookingsByProperty(propertyId: number): Promise<Booking[]>;
   updateBookingStatus(id: number, status: Booking["status"]): Promise<Booking>;
+  // Review operations
+  createReview(review: Omit<Review, "id" | "createdAt" | "status">): Promise<Review>;
+  getReviewsByProperty(propertyId: number): Promise<Review[]>;
+  getReviewsByTenant(tenantId: number): Promise<Review[]>;
+  updateReviewStatus(id: number, status: Review["status"]): Promise<Review>;
 }
-
 
 // Export a single instance of the storage
 export const storage = new MongoStorage();
