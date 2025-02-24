@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
-import { User, Property, Booking, Review } from "@shared/schema";
+import { User, Property, ViewingRequest, Review, Booking } from "@shared/schema";
 
 // User Schema
 export interface UserDocument extends Omit<User, "id">, Document {
@@ -56,7 +56,27 @@ const bookingSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-// Add Review Schema
+// Add Viewing Request Schema
+export interface ViewingRequestDocument extends Omit<ViewingRequest, "id">, Document {
+  id: number;
+}
+
+const viewingRequestSchema = new Schema({
+  id: { type: Number, required: true, unique: true },
+  propertyId: { type: Number, required: true },
+  tenantId: { type: Number, required: true },
+  status: {
+    type: String,
+    required: true,
+    enum: ["pending", "approved", "completed", "cancelled"],
+    default: "pending"
+  },
+  preferredDate: { type: Date, required: true },
+  message: { type: String },
+  createdAt: { type: Date, default: Date.now },
+});
+
+// Update Review Schema to include viewingId
 export interface ReviewDocument extends Omit<Review, "id">, Document {
   id: number;
 }
@@ -65,6 +85,7 @@ const reviewSchema = new Schema({
   id: { type: Number, required: true, unique: true },
   propertyId: { type: Number, required: true },
   tenantId: { type: Number, required: true },
+  viewingId: { type: Number, required: true },
   rating: { type: Number, required: true, min: 1, max: 5 },
   comment: { type: String, required: true },
   status: {
@@ -80,4 +101,5 @@ const reviewSchema = new Schema({
 export const UserModel = mongoose.model<UserDocument>("User", userSchema);
 export const PropertyModel = mongoose.model<PropertyDocument>("Property", propertySchema);
 export const BookingModel = mongoose.model<BookingDocument>("Booking", bookingSchema);
+export const ViewingRequestModel = mongoose.model<ViewingRequestDocument>("ViewingRequest", viewingRequestSchema);
 export const ReviewModel = mongoose.model<ReviewDocument>("Review", reviewSchema);

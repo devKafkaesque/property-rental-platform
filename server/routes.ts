@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { getPropertyRecommendations, generatePropertyDescription } from "./openai";
-import { insertPropertySchema, insertBookingSchema, insertReviewSchema } from "@shared/schema";
+import { insertPropertySchema, insertBookingSchema, insertReviewSchema, insertViewingRequestSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -156,7 +156,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ description });
   });
 
-  // Review routes
+  // Viewing Request routes
+  app.post("/api/viewing-requests", ensureAuthenticated, async (req, res) => {
+    // Ensure only tenants can request viewings
+    if (req.user!.role !== "tenant") {
+      return res.status(403).json({ error: "Only tenants can request property viewings" });
+    }
+
+    const data = insertViewingRequestSchema.parse(req.body);
+    const request = await storage.createViewingRequest({
+      ...data,
+      tenantId: req.user!.id,
+    });
+    res.json(request);
+  });
+
+  app.get("/api/viewing-requests/property/:id", ensureLandowner, async (req, res) => {
+    const requests = await storage.getViewingRequestsByProperty(Number(req.params.id));
+    res.json(requests);
+  });
+
+  app.get("/api/viewing-requests/tenant", ensureAuthenticated, async (req, res) => {
+    if (req.user!.role !== "tenant") {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    const requests = await storage.getViewingRequestsByTenant(req.user!.id);
+    res.json(requests);
+  });
+
+  app.post("/api/viewing-requests/:id/status", ensureLandowner, async (req, res) => {
+    const request = await storage.updateViewingStatus(
+      Number(req.params.id),
+      req.body.status
+    );
+    res.json(request);
+  });
+
+  // Review routes - Updated to require completed viewing
   app.post("/api/reviews", ensureAuthenticated, async (req, res) => {
     // Ensure only tenants can submit reviews
     if (req.user!.role !== "tenant") {
@@ -164,6 +200,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const data = insertReviewSchema.parse(req.body);
+
+    // Check if the viewing exists and is completed
+    const completedViewings = await storage.getCompletedViewings(req.user!.id, data.propertyId);
+    const validViewing = completedViewings.find(v => v.id === data.viewingId);
+
+    if (!validViewing) {
+      return res.status(403).json({ 
+        error: "You can only review properties after completing a viewing" 
+      });
+    }
+
     const review = await storage.createReview({
       ...data,
       tenantId: req.user!.id,

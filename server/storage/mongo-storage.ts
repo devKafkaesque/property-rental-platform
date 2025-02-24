@@ -1,6 +1,6 @@
 import { IStorage } from "../storage";
-import { User, Property, Booking, InsertUser } from "@shared/schema";
-import { UserModel, PropertyModel, BookingModel } from "../db/models";
+import { User, Property, Booking, ViewingRequest, Review, InsertUser } from "@shared/schema";
+import { UserModel, PropertyModel, BookingModel, ViewingRequestModel, ReviewModel } from "../db/models";
 import session from "express-session";
 import MongoStore from "connect-mongo";
 
@@ -108,5 +108,82 @@ export class MongoStorage implements IStorage {
     );
     if (!booking) throw new Error("Booking not found");
     return booking.toObject();
+  }
+
+  // Add Viewing Request operations
+  async createViewingRequest(request: Omit<ViewingRequest, "id" | "createdAt" | "status">): Promise<ViewingRequest> {
+    const lastRequest = await ViewingRequestModel.findOne().sort({ id: -1 });
+    const newId = (lastRequest?.id || 0) + 1;
+
+    const newRequest = new ViewingRequestModel({
+      ...request,
+      id: newId,
+      status: "pending"
+    });
+    await newRequest.save();
+    return newRequest.toObject();
+  }
+
+  async getViewingRequestsByProperty(propertyId: number): Promise<ViewingRequest[]> {
+    const requests = await ViewingRequestModel.find({ propertyId });
+    return requests.map(request => request.toObject());
+  }
+
+  async getViewingRequestsByTenant(tenantId: number): Promise<ViewingRequest[]> {
+    const requests = await ViewingRequestModel.find({ tenantId });
+    return requests.map(request => request.toObject());
+  }
+
+  async updateViewingStatus(id: number, status: ViewingRequest["status"]): Promise<ViewingRequest> {
+    const request = await ViewingRequestModel.findOneAndUpdate(
+      { id },
+      { $set: { status } },
+      { new: true }
+    );
+    if (!request) throw new Error("Viewing request not found");
+    return request.toObject();
+  }
+
+  async getCompletedViewings(tenantId: number, propertyId: number): Promise<ViewingRequest[]> {
+    const completedViewings = await ViewingRequestModel.find({
+      tenantId,
+      propertyId,
+      status: "completed"
+    });
+    return completedViewings.map(viewing => viewing.toObject());
+  }
+
+  // Add Review operations
+  async createReview(review: Omit<Review, "id" | "createdAt" | "status">): Promise<Review> {
+    const lastReview = await ReviewModel.findOne().sort({ id: -1 });
+    const newId = (lastReview?.id || 0) + 1;
+
+    const newReview = new ReviewModel({
+      ...review,
+      id: newId,
+      status: "pending"
+    });
+    await newReview.save();
+    return newReview.toObject();
+  }
+
+  async getReviewsByProperty(propertyId: number): Promise<Review[]> {
+    const reviews = await ReviewModel.find({ propertyId });
+    return reviews.map(review => review.toObject());
+  }
+
+  async getReviewsByTenant(tenantId: number): Promise<Review[]> {
+    const reviews = await ReviewModel.find({ tenantId });
+    return reviews.map(review => review.toObject());
+  }
+
+  async updateReviewStatus(id: number, status: Review["status"]): Promise<Review> {
+    const review = await ReviewModel.findOneAndUpdate(
+      { id },
+      { $set: { status } },
+      { new: true }
+    );
+    if (!review) throw new Error("Review not found");
+    return review.toObject();
   }
 }

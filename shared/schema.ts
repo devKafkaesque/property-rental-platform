@@ -2,13 +2,12 @@ import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Existing type definitions remain unchanged
+// Existing type definitions
 export type UserRole = "landowner" | "tenant";
 export type FurnishedType = "full" | "semi" | "unfurnished";
 export type PropertyType = "house" | "apartment" | "villa" | "studio";
 export type PropertyCategory = "luxury" | "standard" | "budget";
-
-// Add review type
+export type ViewingStatus = "pending" | "approved" | "completed" | "cancelled";
 export type ReviewStatus = "published" | "pending" | "rejected";
 
 // Existing tables remain unchanged
@@ -37,6 +36,17 @@ export const properties = pgTable("properties", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Add viewing requests table
+export const viewingRequests = pgTable("viewing_requests", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").notNull(),
+  tenantId: integer("tenant_id").notNull(),
+  status: text("status").notNull().$type<ViewingStatus>().default("pending"),
+  preferredDate: timestamp("preferred_date").notNull(),
+  message: text("message"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const bookings = pgTable("bookings", {
   id: serial("id").primaryKey(),
   propertyId: integer("property_id").notNull(),
@@ -47,18 +57,35 @@ export const bookings = pgTable("bookings", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Add reviews table
 export const reviews = pgTable("reviews", {
   id: serial("id").primaryKey(),
   propertyId: integer("property_id").notNull(),
   tenantId: integer("tenant_id").notNull(),
+  viewingId: integer("viewing_id").notNull(), // Link to the completed viewing
   rating: integer("rating").notNull(),
   comment: text("comment").notNull(),
   status: text("status").notNull().$type<ReviewStatus>().default("pending"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Existing insert schemas remain unchanged
+// Add viewing request schema
+export const insertViewingRequestSchema = createInsertSchema(viewingRequests).pick({
+  propertyId: true,
+  preferredDate: true,
+  message: true,
+});
+
+// Update review schema to require viewing
+export const insertReviewSchema = createInsertSchema(reviews).pick({
+  propertyId: true,
+  viewingId: true,
+  rating: true,
+  comment: true,
+}).extend({
+  rating: z.number().min(1).max(5),
+  comment: z.string().min(10).max(500),
+});
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
@@ -84,22 +111,13 @@ export const insertBookingSchema = createInsertSchema(bookings).pick({
   endDate: true,
 });
 
-// Add review insert schema
-export const insertReviewSchema = createInsertSchema(reviews).pick({
-  propertyId: true,
-  rating: true,
-  comment: true,
-}).extend({
-  rating: z.number().min(1).max(5),
-  comment: z.string().min(10).max(500),
-});
 
-// Existing types remain unchanged
+// Export types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 export type Property = typeof properties.$inferSelect;
-export type Booking = typeof bookings.$inferSelect;
-
-// Add review types
-export type InsertReview = z.infer<typeof insertReviewSchema>;
+export type ViewingRequest = typeof viewingRequests.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
+export type InsertViewingRequest = z.infer<typeof insertViewingRequestSchema>;
+export type InsertReview = z.infer<typeof insertReviewSchema>;
+export type Booking = typeof bookings.$inferSelect;

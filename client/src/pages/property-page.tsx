@@ -13,6 +13,8 @@ import { DateRange } from "react-day-picker";
 import PropertyImageCarousel from "@/components/property-image-carousel";
 import ReviewForm from "@/components/review-form";
 import ReviewList from "@/components/review-list";
+import ViewingRequestForm from "@/components/viewing-request-form";
+import ViewingRequestList from "@/components/viewing-request-list";
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
   if (category === "luxury") return Castle;
@@ -162,6 +164,24 @@ export default function PropertyPage() {
 
             {user?.role === "tenant" && (
               <>
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Request a Viewing</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ViewingRequestForm propertyId={Number(id)} />
+                  </CardContent>
+                </Card>
+
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Your Viewing Requests</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ViewingRequestList propertyId={Number(id)} />
+                  </CardContent>
+                </Card>
+
                 <Card>
                   <CardContent className="pt-6">
                     <h3 className="font-semibold mb-4">Book this property</h3>
@@ -181,15 +201,6 @@ export default function PropertyPage() {
                     </Button>
                   </CardContent>
                 </Card>
-
-                <Card className="mt-6">
-                  <CardHeader>
-                    <CardTitle>Write a Review</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ReviewForm propertyId={Number(id)} />
-                  </CardContent>
-                </Card>
               </>
             )}
 
@@ -199,6 +210,9 @@ export default function PropertyPage() {
               </CardHeader>
               <CardContent>
                 <ReviewList propertyId={Number(id)} />
+                {user?.role === "tenant" && (
+                  <ReviewForm propertyId={Number(id)} />
+                )}
               </CardContent>
             </Card>
           </div>
