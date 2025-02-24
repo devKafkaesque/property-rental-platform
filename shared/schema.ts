@@ -1,8 +1,11 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export type UserRole = "landowner" | "tenant";
+export type FurnishedType = "full" | "semi" | "unfurnished";
+export type PropertyType = "house" | "apartment" | "villa" | "studio";
+export type PropertyCategory = "luxury" | "standard" | "budget";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -14,13 +17,17 @@ export const users = pgTable("users", {
 
 export const properties = pgTable("properties", {
   id: serial("id").primaryKey(),
-  title: text("title").notNull(),
+  name: text("name").notNull(),
   description: text("description").notNull(),
-  price: integer("price").notNull(),
-  imageUrl: text("image_url").notNull(),
   address: text("address").notNull(),
+  type: text("type").notNull().$type<PropertyType>(),
+  furnished: text("furnished").notNull().$type<FurnishedType>(),
+  wifi: boolean("wifi").default(false),
+  restrictions: jsonb("restrictions"),
+  condition: text("condition").notNull(),
+  status: text("status").default("available"),
+  category: text("category").notNull().$type<PropertyCategory>(),
   ownerId: integer("owner_id").notNull(),
-  available: boolean("available").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -41,11 +48,15 @@ export const insertUserSchema = createInsertSchema(users).pick({
 });
 
 export const insertPropertySchema = createInsertSchema(properties).pick({
-  title: true,
+  name: true,
   description: true,
-  price: true,
-  imageUrl: true,
   address: true,
+  type: true,
+  furnished: true,
+  wifi: true,
+  restrictions: true,
+  condition: true,
+  category: true,
 });
 
 export const insertBookingSchema = createInsertSchema(bookings).pick({

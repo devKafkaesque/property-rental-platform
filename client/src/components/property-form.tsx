@@ -5,6 +5,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -15,15 +17,19 @@ interface PropertyFormProps {
 
 export default function PropertyForm({ onSuccess }: PropertyFormProps) {
   const { toast } = useToast();
-  
+
   const form = useForm({
     resolver: zodResolver(insertPropertySchema),
     defaultValues: {
-      title: "",
+      name: "",
       description: "",
-      price: 0,
-      imageUrl: "",
       address: "",
+      type: "house",
+      furnished: "full",
+      wifi: false,
+      restrictions: {},
+      condition: "",
+      category: "standard",
     },
   });
 
@@ -50,12 +56,12 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
       >
         <FormField
           control={form.control}
-          name="title"
+          name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Title</FormLabel>
+              <FormLabel>Property Name</FormLabel>
               <FormControl>
-                <Input placeholder="Enter property title" {...field} />
+                <Input placeholder="Enter property name" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -82,39 +88,6 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
 
         <FormField
           control={form.control}
-          name="price"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Monthly Rent</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  placeholder="Enter monthly rent"
-                  {...field}
-                  onChange={(e) => field.onChange(Number(e.target.value))}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="imageUrl"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Image URL</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter image URL" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
           name="address"
           render={({ field }) => (
             <FormItem>
@@ -122,6 +95,108 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
               <FormControl>
                 <Input placeholder="Enter property address" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="type"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Property Type</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select property type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="house">House</SelectItem>
+                  <SelectItem value="apartment">Apartment</SelectItem>
+                  <SelectItem value="villa">Villa</SelectItem>
+                  <SelectItem value="studio">Studio</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="furnished"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Furnished Status</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select furnished status" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="full">Fully Furnished</SelectItem>
+                  <SelectItem value="semi">Semi Furnished</SelectItem>
+                  <SelectItem value="unfurnished">Unfurnished</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="wifi"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">WiFi Available</FormLabel>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="condition"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Property Condition</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter property condition" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select property category" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="luxury">Luxury</SelectItem>
+                  <SelectItem value="standard">Standard</SelectItem>
+                  <SelectItem value="budget">Budget</SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}

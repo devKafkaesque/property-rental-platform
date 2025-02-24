@@ -21,13 +21,17 @@ export interface PropertyDocument extends Omit<Property, "id">, Document {
 
 const propertySchema = new Schema({
   id: { type: Number, required: true, unique: true },
-  title: { type: String, required: true },
+  name: { type: String, required: true },
   description: { type: String, required: true },
-  price: { type: Number, required: true },
-  imageUrl: { type: String, required: true },
   address: { type: String, required: true },
+  type: { type: String, required: true, enum: ["house", "apartment", "villa", "studio"] },
+  furnished: { type: String, required: true, enum: ["full", "semi", "unfurnished"] },
+  wifi: { type: Boolean, default: false },
+  restrictions: { type: Schema.Types.Mixed },
+  condition: { type: String, required: true },
+  status: { type: String, default: "available" },
+  category: { type: String, required: true, enum: ["luxury", "standard", "budget"] },
   ownerId: { type: Number, required: true },
-  available: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
 });
 
