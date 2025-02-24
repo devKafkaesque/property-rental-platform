@@ -158,6 +158,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Review routes
   app.post("/api/reviews", ensureAuthenticated, async (req, res) => {
+    // Ensure only tenants can submit reviews
+    if (req.user!.role !== "tenant") {
+      return res.status(403).json({ error: "Only tenants can submit reviews" });
+    }
+
     const data = insertReviewSchema.parse(req.body);
     const review = await storage.createReview({
       ...data,
@@ -172,6 +177,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/reviews/tenant", ensureAuthenticated, async (req, res) => {
+    if (req.user!.role !== "tenant") {
+      return res.status(403).json({ error: "Access denied" });
+    }
     const reviews = await storage.getReviewsByTenant(req.user!.id);
     res.json(reviews);
   });
