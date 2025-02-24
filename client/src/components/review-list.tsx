@@ -48,7 +48,7 @@ export default function ReviewList({ propertyId }: ReviewListProps) {
                   ))}
                 </div>
                 <span className="text-sm text-muted-foreground">
-                  {format(new Date(review.createdAt), "MMM d, yyyy")}
+                  {format(new Date(review.createdAt!), "MMM d, yyyy")}
                 </span>
               </div>
             </CardHeader>
