@@ -18,6 +18,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 import PropertyImageCarousel from "@/components/property-image-carousel";
 import ViewingRequestManagement from "@/components/viewing-request-management";
+import ReviewList from "@/components/review-list"; // Import ReviewList component
+
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
   if (category === "luxury") return Castle;
@@ -158,6 +160,16 @@ export default function ManagePropertyPage() {
               </CardHeader>
               <CardContent>
                 <ViewingRequestManagement propertyId={Number(id)} />
+              </CardContent>
+            </Card>
+
+            {/* Add Reviews Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Property Reviews</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ReviewList propertyId={Number(id)} />
               </CardContent>
             </Card>
 
