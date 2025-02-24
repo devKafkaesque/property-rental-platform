@@ -159,7 +159,7 @@ export default function ManagePropertyPage() {
                 <CardTitle>Viewing Requests</CardTitle>
               </CardHeader>
               <CardContent>
-                <ViewingRequestManagement propertyId={Number(id)} />
+                <ViewingRequestManagement propertyId={Number(id)} isOwner={user?.id === property.ownerId} />
               </CardContent>
             </Card>
 

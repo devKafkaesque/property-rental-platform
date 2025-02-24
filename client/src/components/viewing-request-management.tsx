@@ -6,16 +6,20 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, Check, X } from "lucide-react";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ViewingRequestManagementProps {
   propertyId: number;
+  isOwner?: boolean;
 }
 
-export default function ViewingRequestManagement({ propertyId }: ViewingRequestManagementProps) {
+export default function ViewingRequestManagement({ propertyId, isOwner }: ViewingRequestManagementProps) {
   const { toast } = useToast();
-  
+  const { user } = useAuth();
+
   const { data: requests, isLoading } = useQuery<ViewingRequest[]>({
-    queryKey: [`/api/viewing-requests/property/${propertyId}`],
+    queryKey: [isOwner ? `/api/viewing-requests/property/${propertyId}` : `/api/viewing-requests/tenant`],
+    enabled: !!user,
   });
 
   const updateStatusMutation = useMutation({
@@ -48,9 +52,14 @@ export default function ViewingRequestManagement({ propertyId }: ViewingRequestM
     );
   }
 
+  // Filter requests if tenant to only show their requests for this property
+  const filteredRequests = isOwner 
+    ? requests 
+    : requests.filter(request => request.propertyId === propertyId);
+
   return (
     <div className="space-y-4">
-      {requests.map((request) => (
+      {filteredRequests.map((request) => (
         <Card key={request.id}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
@@ -70,7 +79,7 @@ export default function ViewingRequestManagement({ propertyId }: ViewingRequestM
             {request.message && (
               <p className="text-sm mt-2">{request.message}</p>
             )}
-            {request.status === "pending" && (
+            {isOwner && request.status === "pending" && (
               <div className="flex gap-2 mt-4">
                 <Button
                   size="sm"
@@ -93,7 +102,7 @@ export default function ViewingRequestManagement({ propertyId }: ViewingRequestM
                 </Button>
               </div>
             )}
-            {request.status === "approved" && (
+            {isOwner && request.status === "approved" && (
               <Button
                 size="sm"
                 className="w-full mt-4"
