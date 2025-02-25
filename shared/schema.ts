@@ -50,6 +50,7 @@ export const properties = pgTable("properties", {
   maintainanceHistory: jsonb("maintainance_history").default([]),
   rentPrice: integer("rent_price").notNull(),
   depositAmount: integer("deposit_amount").notNull(),
+  connectionCode: text("connection_code").unique(), // Added unique code field
 });
 
 export const tenantContracts = pgTable("tenant_contracts", {
@@ -90,7 +91,7 @@ export const reviews = pgTable("reviews", {
   id: serial("id").primaryKey(),
   propertyId: integer("property_id").notNull(),
   tenantId: integer("tenant_id").notNull(),
-  viewingId: integer("viewing_id").notNull(), 
+  viewingId: integer("viewing_id").notNull(),
   rating: integer("rating").notNull(),
   comment: text("comment").notNull(),
   status: text("status").notNull().$type<ReviewStatus>().default("pending"),
@@ -112,7 +113,7 @@ export const insertViewingRequestSchema = createInsertSchema(viewingRequests).pi
   preferredDate: true,
   message: true,
 }).extend({
-  preferredDate: z.coerce.date(), 
+  preferredDate: z.coerce.date(),
   message: z.string().min(10).max(500).optional(),
 });
 
@@ -160,6 +161,7 @@ export const insertPropertySchema = createInsertSchema(properties).pick({
   securityFeatures: true,
   rentPrice: true,
   depositAmount: true,
+  connectionCode: true, // Added to schema
 }).extend({
   type: PropertyType,
   furnished: FurnishedType,
@@ -170,6 +172,7 @@ export const insertPropertySchema = createInsertSchema(properties).pick({
   amenities: z.array(z.string()).default([]),
   accessibility: z.array(z.string()).default([]),
   securityFeatures: z.array(z.string()).default([]),
+  connectionCode: z.string().optional(),
 });
 
 export const insertBookingSchema = createInsertSchema(bookings).pick({

@@ -9,6 +9,7 @@ import path from "path";
 import fs from "fs";
 import express from "express";
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -324,6 +325,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.body.status
     );
     res.json(review);
+  });
+
+  // Generate new connection code for a property
+  app.post("/api/properties/:id/connection-code", ensureLandowner, async (req, res) => {
+    const property = await storage.getPropertyById(Number(req.params.id));
+    if (!property) return res.status(404).end();
+    if (property.ownerId !== req.user!.id) return res.status(403).end();
+
+    // Generate a unique 8-character code
+    const connectionCode = crypto.randomBytes(4).toString('hex');
+
+    const updatedProperty = await storage.updateProperty(Number(req.params.id), {
+      connectionCode
+    });
+
+    res.json({ connectionCode: updatedProperty.connectionCode });
+  });
+
+  // Connect tenant to property using code
+  app.post("/api/properties/connect/:code", ensureAuthenticated, async (req, res) => {
+    if (req.user!.role !== "tenant") {
+      return res.status(403).json({ error: "Only tenants can connect to properties" });
+    }
+
+    const properties = await storage.getProperties();
+    const property = properties.find(p => p.connectionCode === req.params.code);
+
+    if (!property) {
+      return res.status(404).json({ error: "Invalid connection code" });
+    }
+
+    // Create a tenant contract
+    const contract = await storage.createTenantContract({
+      propertyId: property.id,
+      tenantId: req.user!.id,
+      landownerId: property.ownerId,
+      startDate: new Date(),
+      endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)), // Default 1 year
+      rentAmount: property.rentPrice,
+      documents: [],
+      depositPaid: false,
+    });
+
+    // Update property status to rented
+    await storage.updateProperty(property.id, {
+      status: "rented",
+      connectionCode: null, // Clear the code after successful connection
+    });
+
+    res.json({ contract });
   });
 
   const httpServer = createServer(app);

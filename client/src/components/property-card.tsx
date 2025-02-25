@@ -3,6 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Building2, Home, Hotel, MapPin, Castle } from "lucide-react";
 import { Link } from "wouter";
+import PropertyConnectionCode from "./property-connection-code";
 
 interface PropertyCardProps {
   property: Property;
@@ -58,6 +59,15 @@ export default function PropertyCard({ property, isOwner }: PropertyCardProps) {
             {property.type.charAt(0).toUpperCase() + property.type.slice(1)} - {property.furnished}
           </span>
         </div>
+
+        {isOwner && property.status === "available" && (
+          <div className="mt-4 border-t pt-4">
+            <PropertyConnectionCode
+              propertyId={property.id}
+              connectionCode={property.connectionCode}
+            />
+          </div>
+        )}
       </CardContent>
 
       <CardFooter>
