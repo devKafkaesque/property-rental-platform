@@ -112,13 +112,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "This property is not available for connection" });
       }
 
+      // Create tenant contract with the property's rent price
       const contract = await storage.createTenantContract({
         propertyId: property.id,
         tenantId: req.user!.id,
         landownerId: property.ownerId,
         startDate: new Date(),
         endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-        rentAmount: property.rentPrice,
+        rentAmount: property.rentPrice, // Use the property's rent price
         documents: [],
         depositPaid: false,
         contractStatus: "active"
