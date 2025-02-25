@@ -18,6 +18,7 @@ export interface IStorage {
   getPropertyById(id: number): Promise<Property | undefined>;
   getPropertiesByOwner(ownerId: number): Promise<Property[]>;
   updateProperty(id: number, property: Partial<Property>): Promise<Property>;
+  updatePropertyConnectionCode(id: number, code: string | null): Promise<Property>;
 
   // Viewing Request operations
   createViewingRequest(request: Omit<ViewingRequest, "id" | "createdAt" | "status">): Promise<ViewingRequest>;
@@ -31,6 +32,15 @@ export interface IStorage {
   getReviewsByProperty(propertyId: number): Promise<Review[]>;
   getReviewsByTenant(tenantId: number): Promise<Review[]>;
   updateReviewStatus(id: number, status: Review["status"]): Promise<Review>;
+
+  // Maintenance Request operations
+  createMaintenanceRequest(request: any): Promise<any>;
+  getMaintenanceRequestsByProperty(propertyId: number): Promise<any[]>;
+  getMaintenanceRequestsByTenant(tenantId: number): Promise<any[]>;
+  getMaintenanceRequestById(id: number): Promise<any>;
+  updateMaintenanceRequest(id: number, updates: any): Promise<any>;
+  updateMaintenanceStatus(id: number, status: string): Promise<any>;
+  updateMaintenanceNotes(id: number, notes: string): Promise<any>;
 }
 
 // Export a single instance of the storage

@@ -273,6 +273,27 @@ export class MongoStorage implements IStorage {
     return newRequest.toObject();
   }
 
+  async getMaintenanceRequestById(id: number): Promise<MaintenanceRequest> {
+    const request = await MaintenanceRequestModel.findOne({ id });
+    if (!request) throw new Error("Maintenance request not found");
+    return request.toObject();
+  }
+
+  async updateMaintenanceRequest(id: number, updates: Partial<MaintenanceRequest>): Promise<MaintenanceRequest> {
+    const request = await MaintenanceRequestModel.findOneAndUpdate(
+      { id },
+      { 
+        $set: {
+          ...updates,
+          updatedAt: new Date()
+        } 
+      },
+      { new: true }
+    );
+    if (!request) throw new Error("Maintenance request not found");
+    return request.toObject();
+  }
+
   async getMaintenanceRequestsByProperty(propertyId: number): Promise<MaintenanceRequest[]> {
     const requests = await MaintenanceRequestModel.find({ propertyId });
     return requests.map(request => request.toObject());
