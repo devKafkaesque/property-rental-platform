@@ -337,7 +337,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate a unique 8-character code
       const connectionCode = crypto.randomBytes(4).toString('hex');
 
-      const updatedProperty = await storage.updateProperty(Number(req.params.id), {
+      // Update the property with the new code
+      await storage.updateProperty(Number(req.params.id), {
         connectionCode,
         status: property.status // preserve existing status
       });
