@@ -11,7 +11,8 @@ interface ChatMessage {
   userId: number;
   username: string;
   content: string;
-  timestamp: number;
+  propertyId: number;
+  timestamp: number | string;
   messages?: ChatMessage[]; // For history type
 }
 
@@ -38,16 +39,7 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
   const handleSendMessage = () => {
     if (!inputMessage.trim() || !user) return;
 
-    const message: ChatMessage = {
-      type: 'message',
-      userId: user.id,
-      username: user.username,
-      content: inputMessage.trim(),
-      timestamp: Date.now()
-    };
-
     sendMessage(inputMessage.trim());
-    setMessages(prev => [...prev, message]);
     setInputMessage('');
   };
 
@@ -60,24 +52,27 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
 
   // Handle incoming messages
   useEffect(() => {
-    const ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/chat`);
+    const handleWebSocketMessage = (event: MessageEvent) => {
+      try {
+        const message = JSON.parse(event.data) as ChatMessage;
+        console.log('Received message:', message);
 
-    ws.onmessage = (event) => {
-      const message = JSON.parse(event.data) as ChatMessage;
-
-      if (message.type === 'history') {
-        // Handle history messages
-        setMessages(message.messages || []);
-      } else {
-        // Handle regular messages
-        setMessages(prev => [...prev, message]);
+        if (message.type === 'history') {
+          setMessages(message.messages || []);
+        } else {
+          setMessages(prev => [...prev, message]);
+        }
+      } catch (error) {
+        console.error('Error handling message:', error);
       }
     };
 
+    window.addEventListener('message', handleWebSocketMessage);
+
     return () => {
-      ws.close();
+      window.removeEventListener('message', handleWebSocketMessage);
     };
-  }, [propertyId]);
+  }, []);
 
   return (
     <div className="flex flex-col h-[600px] border rounded-lg">

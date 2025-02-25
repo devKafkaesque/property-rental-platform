@@ -53,9 +53,10 @@ export function useWebSocket(propertyId: number) {
 
     ws.onmessage = (event) => {
       try {
-        const message = JSON.parse(event.data) as ChatMessage;
+        const message = JSON.parse(event.data);
         console.log('Received message:', message);
-        // Handle message in parent component
+        // Broadcast the message to the window so the ChatWindow component can handle it
+        window.postMessage(message, window.location.origin);
       } catch (error) {
         console.error('Error parsing message:', error);
       }

@@ -88,7 +88,7 @@ class ChatServer {
       username: message.username,
       content: `${message.username} (${message.role}) joined the chat`,
       propertyId: message.propertyId,
-      timestamp: new Date(message.timestamp)
+      timestamp: new Date()
     }).save();
 
     // Load and send previous messages
@@ -123,7 +123,7 @@ class ChatServer {
       username: message.username,
       content: message.content,
       propertyId: message.propertyId,
-      timestamp: new Date(message.timestamp)
+      timestamp: new Date()
     }).save();
 
     // Broadcast message to property group
@@ -141,7 +141,7 @@ class ChatServer {
         username: message.username,
         content: `${message.username} left the chat`,
         propertyId: message.propertyId,
-        timestamp: new Date(message.timestamp)
+        timestamp: new Date()
       }).save();
 
       // Notify group about member leaving
