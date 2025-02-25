@@ -849,34 +849,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      // Get properties owned by the landowner
+      // Get all properties owned by the landowner
       const properties = await storage.getPropertiesByOwner(req.user!.id);
 
-      // Get all active tenant contracts for these properties
-      const allContracts = await Promise.all(
+      // Get active tenant contracts for these properties
+      const chatProperties = await Promise.all(
         properties.map(async (property) => {
           const contracts = await storage.getTenantContractsByProperty(property.id);
-          return {
-            property,
-            activeContract: contracts.find(c => c.contractStatus === "active")
-          };
+          const activeContract = contracts.find(c => c.contractStatus === "active");
+
+          if (activeContract) {
+            const tenant = await storage.getUser(activeContract.tenantId);
+            return {
+              id: property.id,
+              name: property.name,
+              otherPartyName: tenant?.username || "Unknown Tenant"
+            };
+          }
+          return null;
         })
       );
 
-      // Filter and format properties that have active tenants
-      const chatProperties = await Promise.all(
-        allContracts
-          .filter(({ activeContract }) => activeContract)
-          .map(async ({ property, activeContract }) => {
-            const tenant = await storage.getUser(activeContract!.tenantId);
-            return {
-              id: property.id,
-              name: property.name,              otherPartyName: tenant?.username || "Unknown Tenant"
-            };
-          })
-      );
+      // Filter out properties without active contracts      const activeProperties = chatProperties.filter(Boolean);
 
-      res.json(chatProperties);
+      log('Sending chat properties:', activeProperties);
+      res.json(activeProperties);
     } catch (error) {
       console.error('Error fetching landowner chat properties:', error);
       res.status(500).json({ error: "Failed to fetch chat properties" });
