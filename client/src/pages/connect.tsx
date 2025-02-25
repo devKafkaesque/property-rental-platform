@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ export default function ConnectPage() {
   const [code, setCode] = useState("");
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const connectMutation = useMutation({
     mutationFn: async (code: string) => {
@@ -31,6 +32,10 @@ export default function ConnectPage() {
       return data;
     },
     onSuccess: (data) => {
+      // Invalidate both tenant contracts and properties queries
+      queryClient.invalidateQueries({ queryKey: ["/api/tenant-contracts/tenant"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
+
       toast({
         title: "Successfully connected!",
         description: "You have been connected to the property.",
