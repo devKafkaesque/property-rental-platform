@@ -364,7 +364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateProperty(Number(req.params.id), {
         connectionCode,
-        status: property.status
+        status: property.status // preserve existing status
       });
 
       // Broadcast the update
