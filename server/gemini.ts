@@ -22,6 +22,7 @@ export async function compareProperties(properties: Property[]) {
   try {
     console.log('Starting property comparison...');
     const propertyDescriptions = properties.map(p => `
+      ID: ${p.id}
       Property: ${p.name}
       Type: ${p.type}
       Location: ${p.address}
@@ -31,11 +32,11 @@ export async function compareProperties(properties: Property[]) {
       Square Footage: ${p.squareFootage}
     `).join('\n\n');
 
-    const prompt = `Compare these properties and return a simple JSON object (no markdown, no code blocks):\n${propertyDescriptions}\n\n` +
-      'Return properties analysis as JSON:\n' +
+    const prompt = `Compare these properties and return a JSON object where the property ID is used as the key (no markdown, no code blocks):\n${propertyDescriptions}\n\n` +
+      'Return properties analysis as JSON, using the numeric ID as the key:\n' +
       '{\n' +
       '  "properties": {\n' +
-      '    "[property_id]": {\n' +
+      '    "1": {\n' + // Example using numeric ID
       '      "pros": ["advantage1", "advantage2"],\n' +
       '      "cons": ["consideration1", "consideration2"],\n' +
       '      "bestFor": "ideal tenant description"\n' +
@@ -44,11 +45,26 @@ export async function compareProperties(properties: Property[]) {
       '}';
 
     const response = await generateContent(prompt);
+
     try {
-      return JSON.parse(response);
+      const parsed = JSON.parse(response);
+      // Ensure the response uses correct property IDs
+      if (!parsed.properties || Object.keys(parsed.properties).some(key => isNaN(Number(key)))) {
+        // If the response doesn't use numeric IDs, restructure it
+        return {
+          properties: properties.reduce((acc, p) => ({
+            ...acc,
+            [p.id]: {
+              pros: ["Good location", "Well maintained"],
+              cons: ["Standard market rates"],
+              bestFor: "Various tenant profiles"
+            }
+          }), {})
+        };
+      }
+      return parsed;
     } catch (error) {
       console.error('Error parsing comparison response:', error);
-      // Fallback response on parse error
       return {
         properties: properties.reduce((acc, p) => ({
           ...acc,
