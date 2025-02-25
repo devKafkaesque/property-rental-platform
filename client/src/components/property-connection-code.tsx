@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -18,16 +18,44 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  useEffect(() => {
+    // Set up WebSocket connection
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'PROPERTY_UPDATED' && data.propertyId === propertyId) {
+          // Invalidate and refetch property data
+          queryClient.invalidateQueries({ 
+            queryKey: [`/api/properties/owner/${user?.id}`]
+          });
+        }
+      } catch (error) {
+        console.error('WebSocket message error:', error);
+      }
+    };
+
+    // Clean up on unmount
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, [propertyId, user?.id, queryClient]);
+
   const generateCodeMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`);
       const data = await res.json();
-      console.log('Generated code response:', data); // Debug log
+      console.log('Generated code response:', data);
       return data;
     },
     onSuccess: (data) => {
       if (data.connectionCode) {
-        console.log('Setting new code:', data.connectionCode); // Debug log
+        console.log('Setting new code:', data.connectionCode);
         setCurrentCode(data.connectionCode);
         // Invalidate the query to refresh the property list
         queryClient.invalidateQueries({ 

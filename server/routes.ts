@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { getPropertyRecommendations, generatePropertyDescription, analyzePricing } from "./openai";
@@ -58,6 +59,31 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
+  const httpServer = createServer(app);
+
+  // Set up WebSocket server
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+  // Keep track of connected clients
+  const clients = new Set<WebSocket>();
+
+  wss.on('connection', (ws) => {
+    clients.add(ws);
+
+    ws.on('close', () => {
+      clients.delete(ws);
+    });
+  });
+
+  // Helper function to broadcast updates
+  const broadcastPropertyUpdate = (propertyId: number) => {
+    const message = JSON.stringify({ type: 'PROPERTY_UPDATED', propertyId });
+    clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  };
 
   // Property routes
   app.post("/api/properties", ensureLandowner, async (req, res) => {
@@ -334,16 +360,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!property) return res.status(404).json({ error: "Property not found" });
       if (property.ownerId !== req.user!.id) return res.status(403).json({ error: "Not authorized" });
 
-      // Generate a unique 8-character code
       const connectionCode = crypto.randomBytes(4).toString('hex');
 
-      // Update the property with the new code
       await storage.updateProperty(Number(req.params.id), {
         connectionCode,
-        status: property.status // preserve existing status
+        status: property.status
       });
 
-      console.log('Generated connection code:', connectionCode); // Debug log
+      // Broadcast the update
+      broadcastPropertyUpdate(property.id);
+
+      console.log('Generated connection code:', connectionCode);
       res.json({ connectionCode });
     } catch (error) {
       console.error('Error generating connection code:', error);
@@ -358,7 +385,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Only tenants can connect to properties" });
       }
 
-      // Try both direct ID and connection code lookup
       let property = null;
       const propertyId = Number(req.params.code);
 
@@ -372,34 +398,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!property) {
-        console.log('No property found for code:', req.params.code); // Debug log
+        console.log('No property found for code:', req.params.code);
         return res.status(404).json({ error: "Invalid connection code" });
       }
 
-      console.log('Found property:', property); // Debug log
+      console.log('Found property:', property);
 
       if (property.status !== "available") {
         return res.status(400).json({ error: "This property is not available for connection" });
       }
 
-      // Create a tenant contract
       const contract = await storage.createTenantContract({
         propertyId: property.id,
         tenantId: req.user!.id,
         landownerId: property.ownerId,
         startDate: new Date(),
-        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)), // Default 1 year
+        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
         rentAmount: property.rentPrice,
         documents: [],
         depositPaid: false,
         contractStatus: "active"
       });
 
-      // Update property status to rented and clear connection code
       await storage.updateProperty(property.id, {
         status: "rented",
-        connectionCode: null, // Clear the code after successful connection
+        connectionCode: null,
       });
+
+      // Broadcast the update
+      broadcastPropertyUpdate(property.id);
 
       res.json({ contract });
     } catch (error) {
@@ -408,6 +435,5 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
   return httpServer;
 }
