@@ -364,7 +364,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.updateProperty(Number(req.params.id), {
         connectionCode,
-        status: property.status // preserve existing status
+        status: "available" // Ensure property is available when generating code
       });
 
       // Broadcast the update
@@ -393,10 +393,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid connection code format" });
       }
 
-
       const properties = await storage.getProperties();
       property = properties.find(p => p.connectionCode === code);
-
 
       if (!property) {
         console.log('No property found for code:', code);
