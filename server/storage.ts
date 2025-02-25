@@ -1,4 +1,4 @@
-import { User, Property, ViewingRequest, Review, InsertUser } from "@shared/schema";
+import { User, Property, ViewingRequest, Review, InsertUser, TenantContract } from "@shared/schema";
 import session from "express-session";
 export * from "./storage/mongo-storage";
 import { MongoStorage } from "./storage/mongo-storage";
@@ -21,6 +21,13 @@ export interface IStorage {
   updateProperty(id: number, property: Partial<Property>): Promise<Property>;
   updatePropertyConnectionCode(id: number, code: string | null): Promise<Property>;
   deleteProperty(id: number): Promise<void>;
+
+  // Tenant Contract operations
+  getTenantContractById(id: number): Promise<TenantContract>;
+  getTenantContractsByProperty(propertyId: number): Promise<TenantContract[]>;
+  getTenantContractsByTenant(tenantId: number): Promise<TenantContract[]>;
+  getTenantContractsByLandowner(landownerId: number): Promise<TenantContract[]>;
+  updateTenantContract(id: number, updates: Partial<TenantContract>): Promise<TenantContract>;
 
   // Viewing Request operations
   createViewingRequest(request: Omit<ViewingRequest, "id" | "createdAt" | "status">): Promise<ViewingRequest>;

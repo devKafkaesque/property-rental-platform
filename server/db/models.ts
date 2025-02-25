@@ -129,6 +129,10 @@ const tenantContractSchema = new Schema({
   contractStatus: { type: String, default: "active" },
   documents: { type: [String], default: [] },
   createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+  terminationReason: { type: String },
+  terminationType: { type: String },
+  terminatedAt: { type: Date }
 });
 
 // Add MaintenanceRequest interface and schema

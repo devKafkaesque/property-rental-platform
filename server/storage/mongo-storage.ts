@@ -252,6 +252,12 @@ export class MongoStorage implements IStorage {
     return newContract.toObject();
   }
 
+  async getTenantContractById(id: number): Promise<TenantContract> {
+    const contract = await TenantContractModel.findOne({ id });
+    if (!contract) throw new Error("Tenant contract not found");
+    return contract.toObject();
+  }
+
   async getTenantContractsByProperty(propertyId: number): Promise<TenantContract[]> {
     const contracts = await TenantContractModel.find({ propertyId });
     return contracts.map(contract => contract.toObject());
@@ -270,7 +276,12 @@ export class MongoStorage implements IStorage {
   async updateTenantContract(id: number, updates: Partial<TenantContract>): Promise<TenantContract> {
     const contract = await TenantContractModel.findOneAndUpdate(
       { id },
-      { $set: updates },
+      { 
+        $set: {
+          ...updates,
+          updatedAt: new Date()
+        } 
+      },
       { new: true }
     );
     if (!contract) throw new Error("Tenant contract not found");
