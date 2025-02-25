@@ -112,6 +112,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "This property is not available for connection" });
       }
 
+      // Log contract creation attempt
+      console.log('Attempting to create contract with data:', {
+        propertyId: property.id,
+        tenantId: req.user!.id,
+        landownerId: property.ownerId,
+        rentAmount: property.rentPrice,
+      });
+
       // Create tenant contract with the property's rent price
       const contract = await storage.createTenantContract({
         propertyId: property.id,
@@ -119,11 +127,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         landownerId: property.ownerId,
         startDate: new Date(),
         endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-        rentAmount: property.rentPrice, // Use the property's rent price
+        rentAmount: property.rentPrice,
         documents: [],
         depositPaid: false,
         contractStatus: "active"
       });
+
+      console.log('Contract created successfully:', contract);
 
       // Only clear the connection code after a successful connection
       await storage.updateProperty(property.id, {
