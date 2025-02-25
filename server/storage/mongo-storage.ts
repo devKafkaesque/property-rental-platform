@@ -49,6 +49,15 @@ export class MongoStorage implements IStorage {
     return newUser.toObject();
   }
 
+  async deleteUser(id: number): Promise<void> {
+    try {
+      await UserModel.deleteOne({ id });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      throw new Error('Failed to delete user');
+    }
+  }
+
   // Property operations
   async createProperty(property: Omit<Property, "id" | "createdAt">): Promise<Property> {
     const lastProperty = await PropertyModel.findOne().sort({ id: -1 });
@@ -96,6 +105,15 @@ export class MongoStorage implements IStorage {
     );
     if (!property) throw new Error("Property not found");
     return property.toObject();
+  }
+
+  async deleteProperty(id: number): Promise<void> {
+    try {
+      await PropertyModel.deleteOne({ id });
+    } catch (error) {
+      console.error('Error deleting property:', error);
+      throw new Error('Failed to delete property');
+    }
   }
 
   // Booking operations
@@ -179,9 +197,9 @@ export class MongoStorage implements IStorage {
 
   async getViewingRequestsByTenantAndProperty(tenantId: number, propertyId: number): Promise<ViewingRequest[]> {
     console.log(`Fetching viewing requests for tenant ID: ${tenantId} and property ID: ${propertyId}`);
-    const requests = await ViewingRequestModel.find({ 
+    const requests = await ViewingRequestModel.find({
       tenantId,
-      propertyId 
+      propertyId
     });
     console.log(`Found ${requests.length} requests for tenant ${tenantId} and property ${propertyId}`);
     return requests.map(request => request.toObject());
@@ -282,11 +300,11 @@ export class MongoStorage implements IStorage {
   async updateMaintenanceRequest(id: number, updates: Partial<MaintenanceRequest>): Promise<MaintenanceRequest> {
     const request = await MaintenanceRequestModel.findOneAndUpdate(
       { id },
-      { 
+      {
         $set: {
           ...updates,
           updatedAt: new Date()
-        } 
+        }
       },
       { new: true }
     );
@@ -307,12 +325,12 @@ export class MongoStorage implements IStorage {
   async updateMaintenanceStatus(id: number, status: MaintenanceRequest["status"]): Promise<MaintenanceRequest> {
     const request = await MaintenanceRequestModel.findOneAndUpdate(
       { id },
-      { 
-        $set: { 
+      {
+        $set: {
           status,
           updatedAt: new Date(),
           ...(status === "completed" ? { completedAt: new Date() } : {})
-        } 
+        }
       },
       { new: true }
     );
@@ -323,11 +341,11 @@ export class MongoStorage implements IStorage {
   async updateMaintenanceNotes(id: number, notes: string): Promise<MaintenanceRequest> {
     const request = await MaintenanceRequestModel.findOneAndUpdate(
       { id },
-      { 
-        $set: { 
+      {
+        $set: {
           notes,
           updatedAt: new Date()
-        } 
+        }
       },
       { new: true }
     );

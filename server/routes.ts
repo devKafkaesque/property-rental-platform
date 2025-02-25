@@ -546,6 +546,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add these new routes after the existing routes
+  app.delete("/api/properties/:id", ensureLandowner, async (req, res) => {
+    try {
+      const propertyId = Number(req.params.id);
+      const property = await storage.getPropertyById(propertyId);
+
+      if (!property) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      if (property.ownerId !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized to delete this property" });
+      }
+
+      await storage.deleteProperty(propertyId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting property:', error);
+      res.status(500).json({ error: "Failed to delete property" });
+    }
+  });
+
+  app.post("/api/properties/:id/disconnect", ensureAuthenticated, async (req, res) => {
+    try {
+      const propertyId = Number(req.params.id);
+
+      // Check if user is tenant
+      if (req.user!.role !== "tenant") {
+        return res.status(403).json({ error: "Only tenants can disconnect from properties" });
+      }
+
+      // Get the active contract
+      const contracts = await storage.getTenantContractsByTenant(req.user!.id);
+      const activeContract = contracts.find(c =>
+        c.propertyId === propertyId &&
+        c.contractStatus === "active"
+      );
+
+      if (!activeContract) {
+        return res.status(404).json({ error: "No active connection found" });
+      }
+
+      // Update contract status
+      await storage.updateTenantContract(activeContract.id, {
+        contractStatus: "terminated"
+      });
+
+      // Update property status
+      await storage.updateProperty(propertyId, {
+        status: "available" as const
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error disconnecting from property:', error);
+      res.status(500).json({ error: "Failed to disconnect from property" });
+    }
+  });
+
+  app.delete("/api/users/:id", ensureAuthenticated, async (req, res) => {
+    try {
+      const userId = Number(req.params.id);
+
+      // Users can only delete their own account
+      if (userId !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized to delete this user" });
+      }
+
+      // If user is a landowner, check if they have any active properties
+      if (req.user!.role === "landowner") {
+        const properties = await storage.getPropertiesByOwner(userId);
+        const activeProperties = properties.filter(p => p.status === "rented");
+
+        if (activeProperties.length > 0) {
+          return res.status(400).json({
+            error: "Cannot delete account while having active property rentals. Please end all rentals first."
+          });
+        }
+      }
+
+      // If user is a tenant, check if they have any active contracts
+      if (req.user!.role === "tenant") {
+        const contracts = await storage.getTenantContractsByTenant(userId);
+        const activeContracts = contracts.filter(c => c.contractStatus === "active");
+
+        if (activeContracts.length > 0) {
+          return res.status(400).json({
+            error: "Cannot delete account while having active rentals. Please end all rentals first."
+          });
+        }
+      }
+
+      await storage.deleteUser(userId);
+
+      // Logout the user after deletion
+      req.logout(() => {
+        res.json({ success: true });
+      });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ error: "Failed to delete user" });
+    }
+  });
+
   // AI routes
   app.post("/api/ai/description", async (req, res) => {
     try {

@@ -11,6 +11,7 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsernameOrEmail(usernameOrEmail: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  deleteUser(id: number): Promise<void>;
 
   // Property operations
   createProperty(property: Omit<Property, "id" | "createdAt">): Promise<Property>;
@@ -19,6 +20,7 @@ export interface IStorage {
   getPropertiesByOwner(ownerId: number): Promise<Property[]>;
   updateProperty(id: number, property: Partial<Property>): Promise<Property>;
   updatePropertyConnectionCode(id: number, code: string | null): Promise<Property>;
+  deleteProperty(id: number): Promise<void>;
 
   // Viewing Request operations
   createViewingRequest(request: Omit<ViewingRequest, "id" | "createdAt" | "status">): Promise<ViewingRequest>;
@@ -43,5 +45,4 @@ export interface IStorage {
   updateMaintenanceNotes(id: number, notes: string): Promise<any>;
 }
 
-// Export a single instance of the storage
 export const storage = new MongoStorage();
