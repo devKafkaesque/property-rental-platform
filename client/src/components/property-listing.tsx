@@ -148,9 +148,9 @@ export default function PropertyListing() {
                     </span>
                   )}
                 </div>
-                <div className="flex gap-2 mt-4">
+                <div className="flex flex-col gap-2 mt-4">
                   <Button 
-                    className="flex-1"
+                    className="w-full"
                     onClick={() => setLocation(`/properties/${property.id}`)}
                     variant={(property.status || "available") === "available" ? "default" : "secondary"}
                   >
@@ -161,14 +161,16 @@ export default function PropertyListing() {
                   {user?.role === "landowner" && property.ownerId === user.id && (
                     <Button
                       variant="destructive"
-                      size="icon"
+                      className="w-full flex items-center justify-center gap-2"
                       onClick={() => {
                         if (window.confirm("Are you sure you want to delete this property?")) {
                           deletePropertyMutation.mutate(property.id);
                         }
                       }}
+                      title="Delete Property"
                     >
                       <Trash2 className="h-4 w-4" />
+                      Delete Property
                     </Button>
                   )}
 
@@ -176,14 +178,16 @@ export default function PropertyListing() {
                   {user?.role === "tenant" && property.status === "rented" && (
                     <Button
                       variant="outline"
-                      size="icon"
+                      className="w-full flex items-center justify-center gap-2"
                       onClick={() => {
                         if (window.confirm("Are you sure you want to disconnect from this property?")) {
                           disconnectPropertyMutation.mutate(property.id);
                         }
                       }}
+                      title="Disconnect from Property"
                     >
                       <LogOut className="h-4 w-4" />
+                      Disconnect from Property
                     </Button>
                   )}
                 </div>
