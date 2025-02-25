@@ -16,7 +16,7 @@ import fs from "fs";
 import express from "express";
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
-import { generatePropertyDescription, analyzePricing, compareProperties } from "./gemini";  // Import from gemini.ts
+import { generatePropertyDescription, analyzePricing, compareProperties } from "./gemini";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

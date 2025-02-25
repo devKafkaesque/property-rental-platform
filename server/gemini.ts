@@ -2,10 +2,12 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Property } from "@shared/schema";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: "gemini-1.0-pro" });
+// Use the correct model name according to the latest Gemini API
+const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
 export async function compareProperties(properties: Property[]) {
   try {
+    console.log('Starting property comparison with Gemini API...');
     const propertyDescriptions = properties.map(p => `
       Property: ${p.name}
       Type: ${p.type}
@@ -40,9 +42,11 @@ export async function compareProperties(properties: Property[]) {
       '  }\n' +
       '}';
 
+    console.log('Sending request to Gemini API...');
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
+    console.log('Received response from Gemini API:', text);
     return JSON.parse(text);
   } catch (error) {
     console.error('Gemini API Error:', error);
@@ -69,6 +73,7 @@ export async function generatePropertyDescription(details: {
   amenities?: string[];
 }) {
   try {
+    console.log('Generating property description with Gemini API...');
     const prompt = `Generate a professional property description for:\n${JSON.stringify(details)}\n\n` +
       'Include:\n' +
       '1. An engaging description\n' +
@@ -84,6 +89,7 @@ export async function generatePropertyDescription(details: {
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
+    console.log('Received response from Gemini API:', text);
     const parsed = JSON.parse(text);
 
     return {
@@ -110,6 +116,7 @@ export async function analyzePricing(details: {
   amenities?: string[];
 }) {
   try {
+    console.log('Analyzing pricing with Gemini API...');
     const prompt = `Analyze pricing for this property:\n${JSON.stringify(details)}\n\n` +
       'Provide:\n' +
       '1. Suggested monthly rent\n' +
@@ -127,6 +134,7 @@ export async function analyzePricing(details: {
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
+    console.log('Received response from Gemini API:', text);
     const parsed = JSON.parse(text);
 
     return {

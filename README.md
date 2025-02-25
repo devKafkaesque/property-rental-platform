@@ -7,7 +7,7 @@ A comprehensive property rental management platform that simplifies interactions
 - React.js frontend with modern UI components
 - Node.js/Express backend
 - MongoDB database integration
-- OpenAI integration for property recommendations and descriptions
+- Google Gemini AI integration for property recommendations and descriptions
 - Google OAuth authentication
 - Tailwind CSS for responsive design
 - Advanced role-based access control
@@ -19,7 +19,7 @@ A comprehensive property rental management platform that simplifies interactions
 - **Frontend**: React.js, Tailwind CSS, shadcn/ui
 - **Backend**: Node.js, Express
 - **Database**: MongoDB
-- **AI Integration**: OpenAI API
+- **AI Integration**: Google Gemini API
 - **Authentication**: Google OAuth, Passport.js
 - **State Management**: TanStack Query
 - **Routing**: Wouter
@@ -35,7 +35,6 @@ A comprehensive property rental management platform that simplifies interactions
    - Create a `.env` file in the root directory
    - Add required environment variables:
      ```
-     OPENAI_API_KEY=your_openai_api_key
      GOOGLE_API_KEY=your_google_api_key
      ```
 
