@@ -916,6 +916,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch chat properties" });
     }
   });
+  // Add this endpoint after other property routes
+  app.patch("/api/properties/:id/name", ensureLandowner, async (req, res) => {
+    try {
+      const propertyId = Number(req.params.id);
+      const { name } = req.body;
+
+      if (!name || typeof name !== 'string' || name.trim().length === 0) {
+        return res.status(400).json({ error: "Invalid property name" });
+      }
+
+      const property = await storage.getPropertyById(propertyId);
+
+      if (!property) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      if (property.ownerId !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized to rename this property" });
+      }
+
+      await storage.updateProperty(propertyId, { name: name.trim() });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error renaming property:', error);
+      res.status(500).json({ error: "Failed to rename property" });
+    }
+  });
 
   return httpServer;
 

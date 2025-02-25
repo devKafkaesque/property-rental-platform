@@ -9,8 +9,7 @@ import {
   UserCircle2, 
   MoreVertical, 
   Trash2, 
-  Pencil,
-  X 
+  Pencil
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -20,6 +19,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface ChatMessage {
   type: 'message' | 'join' | 'leave' | 'history' | 'delete';
@@ -40,10 +41,12 @@ interface ChatWindowProps {
 
 export function ChatWindow({ propertyId, propertyName, onRename }: ChatWindowProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isRenaming, setIsRenaming] = useState(false);
   const [newGroupName, setNewGroupName] = useState(propertyName);
+  const [isProcessing, setIsProcessing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { sendMessage } = useWebSocket(propertyId);
 
@@ -73,11 +76,35 @@ export function ChatWindow({ propertyId, propertyName, onRename }: ChatWindowPro
     sendMessage('', 'delete', messageTimestamp);
   };
 
-  const handleRenameGroup = () => {
-    if (newGroupName.trim() && newGroupName !== propertyName) {
-      onRename?.(newGroupName.trim());
+  const handleRenameGroup = async () => {
+    if (!newGroupName.trim() || newGroupName === propertyName || !user || user.role !== 'landowner') {
+      setIsRenaming(false);
+      return;
     }
-    setIsRenaming(false);
+
+    setIsProcessing(true);
+    try {
+      await apiRequest(`/api/properties/${propertyId}/name`, {
+        method: 'PATCH',
+        body: { name: newGroupName.trim() }
+      });
+
+      onRename?.(newGroupName.trim());
+      toast({
+        title: "Success",
+        description: "Chat renamed successfully",
+      });
+    } catch (error) {
+      console.error('Error renaming chat:', error);
+      toast({
+        title: "Error",
+        description: "Failed to rename chat",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+      setIsRenaming(false);
+    }
   };
 
   // Handle incoming messages
@@ -136,19 +163,21 @@ export function ChatWindow({ propertyId, propertyName, onRename }: ChatWindowPro
     <div className="flex flex-col h-[600px] border rounded-lg">
       <div className="p-4 border-b bg-muted flex items-center justify-between">
         <h3 className="font-semibold">{propertyName} Chat</h3>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setIsRenaming(true)}>
-              <Pencil className="h-4 w-4 mr-2" />
-              Rename Chat
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {user?.role === 'landowner' && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setIsRenaming(true)}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Rename Chat
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       <ScrollArea className="flex-grow p-4">
@@ -228,10 +257,10 @@ export function ChatWindow({ propertyId, propertyName, onRename }: ChatWindowPro
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRenaming(false)}>
+            <Button variant="outline" onClick={() => setIsRenaming(false)} disabled={isProcessing}>
               Cancel
             </Button>
-            <Button onClick={handleRenameGroup}>
+            <Button onClick={handleRenameGroup} disabled={isProcessing || !newGroupName.trim() || newGroupName === propertyName}>
               Save Changes
             </Button>
           </DialogFooter>
