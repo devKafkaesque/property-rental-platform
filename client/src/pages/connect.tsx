@@ -32,15 +32,17 @@ export default function ConnectPage() {
       return data;
     },
     onSuccess: (data) => {
-      // Invalidate both tenant contracts and properties queries
+      // Invalidate all relevant queries
       queryClient.invalidateQueries({ queryKey: ["/api/tenant-contracts/tenant"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tenant-contracts/landowner"] });
       queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/properties/owner"] });
 
       toast({
         title: "Successfully connected!",
         description: "You have been connected to the property.",
       });
-      setTimeout(() => setLocation("/dashboard"), 1500);
+      setTimeout(() => setLocation("/connections"), 1500);
     },
     onError: (error: Error) => {
       toast({
