@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { Property } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Star, AlertCircle, Loader2 } from "lucide-react";
@@ -23,8 +29,7 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
     enabled: !!propertyIds.length && !!properties,
     queryFn: async () => {
       const response = await apiRequest("POST", "/api/properties/compare", { propertyIds });
-      const data = await response.json();
-      return data;
+      return response.json();
     },
   });
 
@@ -32,9 +37,12 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[900px] h-[80vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Compare Properties</DialogTitle>
+          <DialogDescription>
+            {isLoading ? "Loading comparison..." : "Review and compare selected properties"}
+          </DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
@@ -54,7 +62,6 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-6">
-                      {/* Basic Info */}
                       <div className="grid grid-cols-3 gap-2 text-sm">
                         <div>
                           <p className="font-medium">Beds</p>
@@ -71,7 +78,6 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
                       </div>
                       <p className="text-lg font-semibold">${property.rentPrice}/month</p>
 
-                      {/* Analysis */}
                       {analysis && (
                         <div className="space-y-4 border-t pt-4">
                           <div>
