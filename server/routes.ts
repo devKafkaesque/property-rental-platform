@@ -703,8 +703,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "One or more properties not found" });
       }
 
-      const comparison = await compareProperties(properties);
-      res.json(comparison);
+      try {
+        const comparison = await compareProperties(properties);
+        res.json(comparison);
+      } catch (error) {
+        console.error('Property comparison error:', error);
+        res.status(500).json({ 
+          error: "Failed to compare properties",
+          details: error instanceof Error ? error.message : "Unknown error"
+        });
+      }
     } catch (error) {
       console.error('Property comparison error:', error);
       res.status(500).json({ error: "Failed to compare properties" });

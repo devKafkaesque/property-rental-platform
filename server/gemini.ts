@@ -2,8 +2,22 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Property } from "@shared/schema";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
-// Use the correct model name according to the latest Gemini API
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+// List available models first
+async function listAvailableModels() {
+  try {
+    console.log('Listing available Gemini models...');
+    const modelId = "gemini-pro";
+    const model = genAI.getGenerativeModel({ model: modelId });
+    return model;
+  } catch (error) {
+    console.error('Error initializing Gemini model:', error);
+    throw error;
+  }
+}
+
+// Initialize model
+const model = listAvailableModels();
 
 export async function compareProperties(properties: Property[]) {
   try {
@@ -42,25 +56,29 @@ export async function compareProperties(properties: Property[]) {
       '  }\n' +
       '}';
 
-    console.log('Sending request to Gemini API...');
-    const result = await model.generateContent(prompt);
+    const result = await (await model).generateContent(prompt);
     const response = result.response;
     const text = response.text();
     console.log('Received response from Gemini API:', text);
-    return JSON.parse(text);
+
+    try {
+      return JSON.parse(text);
+    } catch (parseError) {
+      console.error('Error parsing Gemini response:', parseError);
+      return {
+        properties: properties.reduce((acc, p) => ({
+          ...acc,
+          [p.id]: {
+            pros: ["Convenient location", "Well-maintained property"],
+            cons: ["Standard market pricing"],
+            bestFor: "Suitable for various tenant profiles"
+          }
+        }), {})
+      };
+    }
   } catch (error) {
     console.error('Gemini API Error:', error);
-    // Return a formatted fallback response instead of throwing
-    return {
-      properties: properties.reduce((acc, p) => ({
-        ...acc,
-        [p.id]: {
-          pros: ["Good location", "Well maintained"],
-          cons: ["Standard market rates"],
-          bestFor: "Various tenant profiles"
-        }
-      }), {})
-    };
+    throw error;
   }
 }
 
@@ -86,24 +104,29 @@ export async function generatePropertyDescription(details: {
       '  "seoKeywords": ["keyword1", "keyword2", ...]\n' +
       '}';
 
-    const result = await model.generateContent(prompt);
+    const result = await (await model).generateContent(prompt);
     const response = result.response;
     const text = response.text();
     console.log('Received response from Gemini API:', text);
-    const parsed = JSON.parse(text);
 
-    return {
-      description: parsed.description || "A well-maintained property in a desirable location.",
-      highlights: parsed.highlights || ["Location", "Well maintained", "Modern amenities"],
-      seoKeywords: parsed.seoKeywords || ["rental property", "real estate", details.type]
-    };
+    try {
+      const parsed = JSON.parse(text);
+      return {
+        description: parsed.description || "A well-maintained property in a desirable location.",
+        highlights: parsed.highlights || ["Location", "Well maintained", "Modern amenities"],
+        seoKeywords: parsed.seoKeywords || ["rental property", "real estate", details.type]
+      };
+    } catch (error) {
+      console.error('Error parsing Gemini response:', error);
+      return {
+        description: "A well-maintained property in a desirable location.",
+        highlights: ["Location", "Well maintained", "Modern amenities"],
+        seoKeywords: ["rental property", "real estate", details.type]
+      };
+    }
   } catch (error) {
     console.error('Gemini API Error:', error);
-    return {
-      description: "A well-maintained property in a desirable location.",
-      highlights: ["Location", "Well maintained", "Modern amenities"],
-      seoKeywords: ["rental property", "real estate", details.type]
-    };
+    throw error;
   }
 }
 
@@ -131,25 +154,30 @@ export async function analyzePricing(details: {
       '  "marketInsights": ["insight1", "insight2", ...]\n' +
       '}';
 
-    const result = await model.generateContent(prompt);
+    const result = await (await model).generateContent(prompt);
     const response = result.response;
     const text = response.text();
     console.log('Received response from Gemini API:', text);
-    const parsed = JSON.parse(text);
 
-    return {
-      suggestedPrice: parsed.suggestedPrice || 2000,
-      priceRange: parsed.priceRange || { min: 1800, max: 2200 },
-      justification: parsed.justification || "Based on current market rates and property features",
-      marketInsights: parsed.marketInsights || ["Competitive market rates", "Good value proposition"]
-    };
+    try {
+      const parsed = JSON.parse(text);
+      return {
+        suggestedPrice: parsed.suggestedPrice || 2000,
+        priceRange: parsed.priceRange || { min: 1800, max: 2200 },
+        justification: parsed.justification || "Based on current market rates and property features",
+        marketInsights: parsed.marketInsights || ["Competitive market rates", "Good value proposition"]
+      };
+    } catch (error) {
+      console.error('Error parsing Gemini response:', error);
+      return {
+        suggestedPrice: 2000,
+        priceRange: { min: 1800, max: 2200 },
+        justification: "Based on current market rates and property features",
+        marketInsights: ["Competitive market rates", "Good value proposition"]
+      };
+    }
   } catch (error) {
     console.error('Gemini API Error:', error);
-    return {
-      suggestedPrice: 2000,
-      priceRange: { min: 1800, max: 2200 },
-      justification: "Based on current market rates and property features",
-      marketInsights: ["Competitive market rates", "Good value proposition"]
-    };
+    throw error;
   }
 }

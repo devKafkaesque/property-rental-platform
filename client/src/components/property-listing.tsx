@@ -2,11 +2,14 @@ import { Property, User } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency } from "@/lib/utils";
-import { Home, Bed, Bath, Square, Wifi, Trash2, LogOut } from "lucide-react";
+import { Home, Bed, Bath, Square, Wifi, Trash2, LogOut, Compare } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { PropertyComparison } from "./property-comparison";
 
 export default function PropertyListing() {
   const [, setLocation] = useLocation();
@@ -15,6 +18,10 @@ export default function PropertyListing() {
   const { data: properties = [], isLoading } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
   });
+
+  // Add state for property comparison
+  const [selectedProperties, setSelectedProperties] = useState<number[]>([]);
+  const [showComparison, setShowComparison] = useState(false);
 
   // Delete property mutation
   const deletePropertyMutation = useMutation({
@@ -58,6 +65,25 @@ export default function PropertyListing() {
     },
   });
 
+  // Handle property selection for comparison
+  const togglePropertySelection = (propertyId: number) => {
+    setSelectedProperties(prev => {
+      const isSelected = prev.includes(propertyId);
+      if (isSelected) {
+        return prev.filter(id => id !== propertyId);
+      }
+      if (prev.length >= 3) {
+        toast({
+          title: "Maximum Selection Reached",
+          description: "You can compare up to 3 properties at a time.",
+          variant: "destructive",
+        });
+        return prev;
+      }
+      return [...prev, propertyId];
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -95,9 +121,31 @@ export default function PropertyListing() {
 
   return (
     <div className="space-y-6">
+      {/* Comparison Button */}
+      {selectedProperties.length > 1 && (
+        <div className="flex justify-end mb-4">
+          <Button
+            onClick={() => setShowComparison(true)}
+            className="flex items-center gap-2"
+          >
+            <Compare className="h-4 w-4" />
+            Compare ({selectedProperties.length})
+          </Button>
+        </div>
+      )}
+
+      {/* Property Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedProperties.map((property) => (
           <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+            {/* Property Selection Checkbox */}
+            <div className="absolute top-2 left-2 z-10">
+              <Checkbox
+                checked={selectedProperties.includes(property.id)}
+                onCheckedChange={() => togglePropertySelection(property.id)}
+              />
+            </div>
+
             {property.images && property.images.length > 0 && (
               <div className="relative h-48 overflow-hidden">
                 <img
@@ -157,7 +205,6 @@ export default function PropertyListing() {
                     View Details
                   </Button>
 
-                  {/* Show delete button for landowners */}
                   {user?.role === "landowner" && property.ownerId === user.id && (
                     <Button
                       variant="destructive"
@@ -174,7 +221,6 @@ export default function PropertyListing() {
                     </Button>
                   )}
 
-                  {/* Show disconnect button for tenants */}
                   {user?.role === "tenant" && property.status === "rented" && (
                     <Button
                       variant="outline"
@@ -196,6 +242,21 @@ export default function PropertyListing() {
           </Card>
         ))}
       </div>
+
+      {/* Property Comparison Dialog */}
+      {showComparison && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <PropertyComparison
+              propertyIds={selectedProperties}
+              onClose={() => {
+                setShowComparison(false);
+                setSelectedProperties([]);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
