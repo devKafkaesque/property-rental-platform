@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChatWindow } from "./chat-window";
-import { Plus, Hash } from "lucide-react";
+import { Plus, Hash, ArrowLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 
 interface ChatGroup {
   id: string;
@@ -20,6 +21,7 @@ export function ChatContainer() {
   const { toast } = useToast();
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
+  const [, setLocation] = useLocation();
 
   const { data: chatGroups = [], refetch: refetchGroups } = useQuery<ChatGroup[]>({
     queryKey: ['/api/chat/groups'],
@@ -50,7 +52,16 @@ export function ChatContainer() {
     <div className="grid grid-cols-4 gap-4 h-[600px]">
       <div className="border rounded-lg p-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold">Chat Groups</h3>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setLocation('/dashboard')}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h3 className="font-semibold">Chat Groups</h3>
+          </div>
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon">
