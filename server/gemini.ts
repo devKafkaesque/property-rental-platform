@@ -2,22 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Property } from "@shared/schema";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
-
-// List available models first
-async function listAvailableModels() {
-  try {
-    console.log('Listing available Gemini models...');
-    const modelId = "gemini-pro";
-    const model = genAI.getGenerativeModel({ model: modelId });
-    return model;
-  } catch (error) {
-    console.error('Error initializing Gemini model:', error);
-    throw error;
-  }
-}
-
-// Initialize model
-const model = listAvailableModels();
+const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
 export async function compareProperties(properties: Property[]) {
   try {
@@ -25,18 +10,14 @@ export async function compareProperties(properties: Property[]) {
     const propertyDescriptions = properties.map(p => `
       Property: ${p.name}
       Type: ${p.type}
-      Category: ${p.category}
+      Location: ${p.address}
       Bedrooms: ${p.bedrooms}
       Bathrooms: ${p.bathrooms}
       Square Footage: ${p.squareFootage}
       Rent: $${p.rentPrice}
       Features: ${[
         p.wifi ? 'WiFi' : null,
-        p.petsAllowed ? 'Pet Friendly' : null,
-        ...(p.amenities || []),
-        ...(p.utilities || []),
-        ...(p.accessibility || []),
-        ...(p.securityFeatures || [])
+        ...(p.amenities || [])
       ].filter(Boolean).join(', ')}
     `).join('\n\n');
 
@@ -56,7 +37,8 @@ export async function compareProperties(properties: Property[]) {
       '  }\n' +
       '}';
 
-    const result = await (await model).generateContent(prompt);
+    console.log('Sending request to Gemini API...');
+    const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
     console.log('Received response from Gemini API:', text);
@@ -69,9 +51,9 @@ export async function compareProperties(properties: Property[]) {
         properties: properties.reduce((acc, p) => ({
           ...acc,
           [p.id]: {
-            pros: ["Convenient location", "Well-maintained property"],
-            cons: ["Standard market pricing"],
-            bestFor: "Suitable for various tenant profiles"
+            pros: ["Good location", "Well maintained"],
+            cons: ["Standard market rates"],
+            bestFor: "Various tenant profiles"
           }
         }), {})
       };
@@ -104,7 +86,8 @@ export async function generatePropertyDescription(details: {
       '  "seoKeywords": ["keyword1", "keyword2", ...]\n' +
       '}';
 
-    const result = await (await model).generateContent(prompt);
+    console.log('Sending request to Gemini API...');
+    const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
     console.log('Received response from Gemini API:', text);
@@ -154,7 +137,8 @@ export async function analyzePricing(details: {
       '  "marketInsights": ["insight1", "insight2", ...]\n' +
       '}';
 
-    const result = await (await model).generateContent(prompt);
+    console.log('Sending request to Gemini API...');
+    const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
     console.log('Received response from Gemini API:', text);

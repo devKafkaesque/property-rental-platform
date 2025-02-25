@@ -1,0 +1,25 @@
+6:02:47 PM [express] GET /api/viewing-requests/property/1 304 in 1169ms :: [{"_id":"67bdd41cef97591e…
+Generating property description with Gemini API...
+Gemini API Error: GoogleGenerativeAIFetchError: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent: [404 Not Found] models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+    at handleResponseNotOk (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:420:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async makeRequest (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:393:9)
+    at async generateContent (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:840:22)
+    at async generatePropertyDescription (/home/runner/workspace/server/gemini.ts:107:20)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:665:27) {
+  status: 404,
+  statusText: 'Not Found',
+  errorDetails: undefined
+}
+Gemini API Error: GoogleGenerativeAIFetchError: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent: [404 Not Found] models/gemini-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+    at handleResponseNotOk (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:420:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async makeRequest (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:393:9)
+    at async generateContent (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:840:22)
+    at async generatePropertyDescription (/home/runner/workspace/server/gemini.ts:107:20)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:665:27) {
+  status: 404,
+  statusText: 'Not Found',
+  errorDetails: undefined
+}
+6:02:59 PM [express] POST /api/ai/description 500 in 841ms :: {"error":"Failed to generate descripti…

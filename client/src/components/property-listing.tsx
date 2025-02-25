@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatCurrency } from "@/lib/utils";
-import { Home, Bed, Bath, Square, Wifi, Trash2, LogOut, Compare } from "lucide-react";
+import { Home, Bed, Bath, Square, Wifi, Trash2, LogOut, BarChart2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -19,51 +19,9 @@ export default function PropertyListing() {
     queryKey: ["/api/properties"],
   });
 
-  // Add state for property comparison
+  // State for property comparison
   const [selectedProperties, setSelectedProperties] = useState<number[]>([]);
   const [showComparison, setShowComparison] = useState(false);
-
-  // Delete property mutation
-  const deletePropertyMutation = useMutation({
-    mutationFn: async (propertyId: number) => {
-      await apiRequest("DELETE", `/api/properties/${propertyId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
-      toast({
-        title: "Success",
-        description: "Property has been deleted.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete property",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Disconnect from property mutation
-  const disconnectPropertyMutation = useMutation({
-    mutationFn: async (propertyId: number) => {
-      await apiRequest("POST", `/api/properties/${propertyId}/disconnect`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
-      toast({
-        title: "Success",
-        description: "Successfully disconnected from property.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to disconnect from property",
-        variant: "destructive",
-      });
-    },
-  });
 
   // Handle property selection for comparison
   const togglePropertySelection = (propertyId: number) => {
@@ -84,6 +42,16 @@ export default function PropertyListing() {
     });
   };
 
+  // Sort properties - Available properties first
+  const sortedProperties = [...properties].sort((a, b) => {
+    if (a.status === "available" && b.status !== "available") return -1;
+    if (a.status !== "available" && b.status === "available") return 1;
+    return 0;
+  });
+
+  // Show comparison button if user is tenant and has selected properties
+  const showComparisonButton = user?.role === "tenant" && selectedProperties.length > 1;
+
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -99,37 +67,17 @@ export default function PropertyListing() {
     );
   }
 
-  if (!properties || properties.length === 0) {
-    return (
-      <div className="text-center py-12 px-4">
-        <h3 className="text-2xl font-semibold mb-4">Welcome to Property Listings!</h3>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
-          We're currently updating our property listings. Please check back soon to discover amazing properties 
-          that match your preferences. You can also contact support if you need assistance finding specific properties.
-        </p>
-      </div>
-    );
-  }
-
-  // Show all properties, with available ones first
-  const sortedProperties = [...properties].sort((a, b) => {
-    // Sort available properties first
-    if ((a.status || "available") === "available" && (b.status || "available") !== "available") return -1;
-    if ((a.status || "available") !== "available" && (b.status || "available") === "available") return 1;
-    return 0;
-  });
-
   return (
     <div className="space-y-6">
       {/* Comparison Button */}
-      {selectedProperties.length > 1 && (
+      {showComparisonButton && (
         <div className="flex justify-end mb-4">
           <Button
             onClick={() => setShowComparison(true)}
             className="flex items-center gap-2"
           >
-            <Compare className="h-4 w-4" />
-            Compare ({selectedProperties.length})
+            <BarChart2 className="h-4 w-4" />
+            Compare Selected ({selectedProperties.length})
           </Button>
         </div>
       )}
@@ -137,14 +85,17 @@ export default function PropertyListing() {
       {/* Property Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedProperties.map((property) => (
-          <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-            {/* Property Selection Checkbox */}
-            <div className="absolute top-2 left-2 z-10">
-              <Checkbox
-                checked={selectedProperties.includes(property.id)}
-                onCheckedChange={() => togglePropertySelection(property.id)}
-              />
-            </div>
+          <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-shadow relative">
+            {/* Show checkbox only for tenants and available properties */}
+            {user?.role === "tenant" && property.status === "available" && (
+              <div className="absolute top-2 right-2 z-10">
+                <Checkbox
+                  checked={selectedProperties.includes(property.id)}
+                  onCheckedChange={() => togglePropertySelection(property.id)}
+                  className="bg-white/90"
+                />
+              </div>
+            )}
 
             {property.images && property.images.length > 0 && (
               <div className="relative h-48 overflow-hidden">
@@ -197,7 +148,7 @@ export default function PropertyListing() {
                   )}
                 </div>
                 <div className="flex flex-col gap-2 mt-4">
-                  <Button 
+                  <Button
                     className="w-full"
                     onClick={() => setLocation(`/properties/${property.id}`)}
                     variant={(property.status || "available") === "available" ? "default" : "secondary"}
@@ -243,7 +194,7 @@ export default function PropertyListing() {
         ))}
       </div>
 
-      {/* Property Comparison Dialog */}
+      {/* Property Comparison Modal */}
       {showComparison && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
