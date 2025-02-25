@@ -20,12 +20,12 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
 
   const generateCodeMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`);
-      if (!res.ok) {
-        throw new Error("Failed to generate connection code");
+      const response = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`);
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error);
       }
-      const data = await res.json();
-      return data;
+      return response.json();
     },
     onSuccess: (data) => {
       if (data.connectionCode) {
