@@ -20,24 +20,31 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
 
   const generateCodeMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`);
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error);
+      try {
+        const response = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`);
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Invalid response from server");
+        }
+        const data = await response.json();
+        if (!data.connectionCode) {
+          throw new Error("Invalid response format");
+        }
+        return data;
+      } catch (error) {
+        console.error('Error generating code:', error);
+        throw error;
       }
-      return response.json();
     },
     onSuccess: (data) => {
-      if (data.connectionCode) {
-        setCurrentCode(data.connectionCode);
-        queryClient.invalidateQueries({ 
-          queryKey: [`/api/properties/owner/${user?.id}`]
-        });
-        toast({
-          title: "Connection code generated",
-          description: "Share this code with your tenant to establish a connection.",
-        });
-      }
+      setCurrentCode(data.connectionCode);
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/properties/owner/${user?.id}`]
+      });
+      toast({
+        title: "Connection code generated",
+        description: "Share this code with your tenant to establish a connection.",
+      });
     },
     onError: (error) => {
       console.error('Error generating code:', error);
