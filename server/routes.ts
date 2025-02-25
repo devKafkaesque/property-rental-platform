@@ -61,23 +61,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
   const httpServer = createServer(app);
 
-  // Set up WebSocket server
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  // Set up WebSocket server with a specific path
+  const wss = new WebSocketServer({ 
+    server: httpServer, 
+    path: '/api/ws/property-updates'  // Changed path to avoid conflicts
+  });
 
   // Keep track of connected clients
   const clients = new Set<WebSocket>();
 
   wss.on('connection', (ws) => {
     clients.add(ws);
+    console.log('WebSocket client connected');
 
     ws.on('close', () => {
       clients.delete(ws);
+      console.log('WebSocket client disconnected');
     });
+
+    // Send immediate confirmation
+    ws.send(JSON.stringify({ type: 'CONNECTED' }));
   });
 
   // Helper function to broadcast updates
   const broadcastPropertyUpdate = (propertyId: number) => {
     const message = JSON.stringify({ type: 'PROPERTY_UPDATED', propertyId });
+    console.log('Broadcasting update for property:', propertyId);
     clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(message);
