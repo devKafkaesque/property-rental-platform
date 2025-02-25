@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { Property } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
+import { 
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogHeader,
+  DialogDescription
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Building2, Home, Hotel, Castle, Loader2, Star, AlertCircle } from "lucide-react";
@@ -10,6 +17,7 @@ import { apiRequest } from "@/lib/queryClient";
 interface PropertyComparisonProps {
   propertyIds: number[];
   onClose: () => void;
+  open: boolean;
 }
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
@@ -19,9 +27,9 @@ function getPropertyIcon(type: Property["type"], category: Property["category"])
   return Home;
 }
 
-export function PropertyComparison({ propertyIds, onClose }: PropertyComparisonProps) {
+export function PropertyComparison({ propertyIds, onClose, open }: PropertyComparisonProps) {
   const { toast } = useToast();
-  
+
   const { data: properties } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
   });
@@ -37,21 +45,8 @@ export function PropertyComparison({ propertyIds, onClose }: PropertyComparisonP
 
   const selectedProperties = properties?.filter(p => propertyIds.includes(p.id)) || [];
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  return (
+  const content = (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Property Comparison</h2>
-        <Button variant="ghost" onClick={onClose}>Close</Button>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {selectedProperties.map(property => {
           const PropertyIcon = getPropertyIcon(property.type, property.category);
@@ -130,5 +125,27 @@ export function PropertyComparison({ propertyIds, onClose }: PropertyComparisonP
         })}
       </div>
     </div>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Property Comparison</DialogTitle>
+          <DialogDescription>
+            Compare selected properties to make an informed decision
+          </DialogDescription>
+        </DialogHeader>
+        {content}
+      </DialogContent>
+    </Dialog>
   );
 }
