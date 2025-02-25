@@ -42,6 +42,15 @@ export default function ConnectionsDashboard() {
     "contract_ended" | "tenant_request" | "violation" | "other"
   >("contract_ended");
 
+  // Add the missing togglePropertyExpand function
+  const togglePropertyExpand = (propertyId: number) => {
+    setExpandedProperties((prev) =>
+      prev.includes(propertyId)
+        ? prev.filter((id) => id !== propertyId)
+        : [...prev, propertyId]
+    );
+  };
+
   // For landowners: fetch their properties
   const { data: properties, isLoading: propertiesLoading } = useQuery<Property[]>({
     queryKey: [user?.role === "landowner" ? `/api/properties/owner/${user?.id}` : "/api/properties"],
