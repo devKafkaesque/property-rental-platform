@@ -17,7 +17,7 @@ export default function ViewingRequestManagement({ propertyId, isOwner }: Viewin
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const { data: requests, isLoading } = useQuery<ViewingRequest[]>({
+  const { data: requests = [], isLoading } = useQuery<ViewingRequest[]>({
     queryKey: [isOwner ? `/api/viewing-requests/property/${propertyId}` : `/api/viewing-requests/tenant`],
     enabled: !!user,
   });

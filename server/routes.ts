@@ -179,6 +179,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/viewing-requests/:id/status", ensureLandowner, async (req, res) => {
+    try {
+      const request = await storage.updateViewingStatus(
+        Number(req.params.id),
+        req.body.status
+      );
+      res.json(request);
+    } catch (error) {
+      console.error('Error updating viewing request status:', error);
+      res.status(500).json({ error: "Failed to update viewing request status" });
+    }
+  });
+
   // Serve uploaded files
   app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
