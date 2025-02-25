@@ -156,9 +156,10 @@ export function useWebSocket(propertyId: number) {
         username: user.username,
         content,
         propertyId,
-        timestamp: timestamp ? Number(timestamp) : Date.now(),
+        timestamp: timestamp ? Number(new Date(timestamp)) : Date.now(),
       };
 
+      console.log('Sending message:', message);
       wsRef.current.send(JSON.stringify(message));
     },
     [user, propertyId]

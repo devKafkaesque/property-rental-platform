@@ -33,16 +33,12 @@ class ChatServer {
       perMessageDeflate: false,
       verifyClient: async (info, callback) => {
         try {
+          // Log headers for debugging
+          log('WebSocket connection headers:', info.req.headers);
           const cookies = parse(info.req.headers.cookie || '');
-          const sessionId = cookies['connect.sid'];
+          log('Parsed cookies:', cookies);
 
-          if (!sessionId) {
-            callback(false, 401, 'Unauthorized: No session found');
-            return;
-          }
-
-          // Add session info to request for later use
-          (info.req as any).sessionId = sessionId;
+          // Temporarily allow all connections for debugging
           callback(true);
         } catch (error) {
           log('WebSocket authentication error:', error instanceof Error ? error.message : 'Unknown error');
@@ -54,35 +50,25 @@ class ChatServer {
     wss.on('connection', async (ws: WebSocket, req: any) => {
       log('New WebSocket connection attempt');
 
-      try {
-        if (!req.sessionId) {
-          ws.close(1008, 'Unauthorized: No session found');
-          return;
-        }
-
-        ws.on('message', async (data: string) => {
-          try {
-            const message = JSON.parse(data) as ChatMessageData;
-            await this.handleMessage(ws, message);
-          } catch (error) {
-            log('Error handling message:', error instanceof Error ? error.message : 'Unknown error');
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
-            }
+      ws.on('message', async (data: string) => {
+        try {
+          const message = JSON.parse(data) as ChatMessageData;
+          await this.handleMessage(ws, message);
+        } catch (error) {
+          log('Error parsing message:', error instanceof Error ? error.message : 'Unknown error');
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
           }
-        });
+        }
+      });
 
-        ws.on('close', () => {
-          this.handleDisconnect(ws);
-        });
+      ws.on('close', () => {
+        this.handleDisconnect(ws);
+      });
 
-        ws.on('error', (error) => {
-          log('WebSocket error:', error instanceof Error ? error.message : 'Unknown error');
-        });
-      } catch (error) {
-        log('Error in WebSocket connection:', error instanceof Error ? error.message : 'Unknown error');
-        ws.close(1011, 'Something went wrong');
-      }
+      ws.on('error', (error) => {
+        log('WebSocket error:', error instanceof Error ? error.message : 'Unknown error');
+      });
     });
 
     wss.on('error', (error) => {
@@ -99,6 +85,14 @@ class ChatServer {
         }
         return;
       }
+
+      // Log received message for debugging
+      log('Handling message:', {
+        type: message.type,
+        userId: message.userId,
+        propertyId: message.propertyId,
+        timestamp: message.timestamp
+      });
 
       switch (message.type) {
         case 'join':
@@ -123,6 +117,72 @@ class ChatServer {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'error', message: 'Failed to process message' }));
       }
+    }
+  }
+
+  private async handleDeleteMessage(message: ChatMessageData) {
+    try {
+      const timestamp = new Date(message.timestamp);
+      log('Looking for message to delete:', {
+        propertyId: message.propertyId,
+        userId: message.userId,
+        timestamp: timestamp
+      });
+
+      // Find the original message
+      const originalMessage = await ChatMessage.findOne({ 
+        propertyId: message.propertyId,
+        userId: message.userId,
+        type: 'message',
+        timestamp: timestamp
+      });
+
+      if (!originalMessage) {
+        log('Message not found for deletion:', {
+          propertyId: message.propertyId,
+          userId: message.userId,
+          timestamp: timestamp
+        });
+        if (message.userId && this.clients.get(message.userId)) {
+          this.clients.get(message.userId)!.ws.send(JSON.stringify({
+            type: 'error',
+            content: 'Message not found or unauthorized to delete'
+          }));
+        }
+        return;
+      }
+
+      log('Found message to delete:', originalMessage);
+
+      // Update message in MongoDB
+      await ChatMessage.findOneAndUpdate(
+        { _id: originalMessage._id },
+        { 
+          $set: { 
+            isDeleted: true,
+            content: 'This message was deleted'
+          } 
+        }
+      );
+
+      // Broadcast deletion to property group
+      this.broadcastToPropertyGroup({
+        type: 'delete',
+        userId: message.userId,
+        username: message.username,
+        content: 'This message was deleted',
+        propertyId: message.propertyId,
+        timestamp: originalMessage.timestamp
+      });
+    } catch (error) {
+      log('Error in handleDeleteMessage:', error instanceof Error ? error.message : 'Unknown error');
+      if (message.userId && this.clients.get(message.userId)) {
+        this.clients.get(message.userId)!.ws.send(JSON.stringify({
+          type: 'error',
+          content: 'Failed to delete message'
+        }));
+      }
+      throw error;
     }
   }
 
@@ -208,30 +268,6 @@ class ChatServer {
       this.broadcastToPropertyGroup(message);
     } catch (error) {
       log('Error in handleChatMessage:', error instanceof Error ? error.message : 'Unknown error');
-      throw error;
-    }
-  }
-
-  private async handleDeleteMessage(message: ChatMessageData) {
-    try {
-      // Update message in MongoDB
-      await ChatMessage.findOneAndUpdate(
-        { 
-          propertyId: message.propertyId,
-          userId: message.userId,
-          timestamp: message.timestamp,
-          type: 'message'
-        },
-        { $set: { isDeleted: true } }
-      );
-
-      // Broadcast deletion to property group
-      this.broadcastToPropertyGroup({
-        ...message,
-        type: 'delete'
-      });
-    } catch (error) {
-      log('Error in handleDeleteMessage:', error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }

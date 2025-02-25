@@ -4,11 +4,11 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  SendHorizontal, 
-  UserCircle2, 
-  MoreVertical, 
-  Trash2, 
+import {
+  SendHorizontal,
+  UserCircle2,
+  MoreVertical,
+  Trash2,
   Pencil
 } from "lucide-react";
 import {
@@ -73,7 +73,21 @@ export function ChatWindow({ propertyId, propertyName, onRename }: ChatWindowPro
 
   const handleDeleteMessage = (messageTimestamp: number | string) => {
     if (!user) return;
-    sendMessage('', 'delete', messageTimestamp);
+
+    try {
+      const timestamp = typeof messageTimestamp === 'string'
+        ? messageTimestamp
+        : new Date(messageTimestamp).toISOString();
+
+      sendMessage('This message was deleted', 'delete', timestamp);
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete message",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleRenameGroup = async () => {
@@ -114,48 +128,63 @@ export function ChatWindow({ propertyId, propertyName, onRename }: ChatWindowPro
         const data = event.data;
         const message = typeof data === 'string' ? JSON.parse(data) : data;
 
-        if (!message || !message.type) return;
+        if (!message || !message.type) {
+          console.warn('Received invalid message format:', message);
+          return;
+        }
 
         console.log('Received message:', message);
 
         if (message.type === 'history' && Array.isArray(message.messages)) {
           setMessages(message.messages);
         } else if (message.propertyId === propertyId) {
-          // Check for duplicate messages based on content and timestamp
           setMessages(prev => {
-            const isDuplicate = prev.some(m => 
-              m.type === message.type && 
-              m.userId === message.userId && 
-              m.content === message.content && 
-              m.timestamp === message.timestamp
-            );
-
             if (message.type === 'delete') {
-              // Mark message as deleted
-              return prev.map(m => 
-                m.timestamp === message.timestamp ? { ...m, isDeleted: true } : m
-              );
+              // Handle delete message by marking the original message as deleted
+              return prev.map(m => {
+                const msgTimestamp = new Date(m.timestamp).getTime();
+                const deleteTimestamp = new Date(message.timestamp).getTime();
+                return msgTimestamp === deleteTimestamp ? { ...m, isDeleted: true } : m;
+              });
             }
+
+            // Check for duplicate messages
+            const isDuplicate = prev.some(m => {
+              const prevTimestamp = new Date(m.timestamp).getTime();
+              const newTimestamp = new Date(message.timestamp).getTime();
+              return m.type === message.type &&
+                     m.userId === message.userId &&
+                     m.content === message.content &&
+                     prevTimestamp === newTimestamp;
+            });
 
             return isDuplicate ? prev : [...prev, message];
           });
         }
+
+        // Handle error messages
+        if (message.type === 'error') {
+          toast({
+            title: "Error",
+            description: message.content,
+            variant: "destructive",
+          });
+        }
       } catch (error) {
-        console.error('Error handling message:', error);
+        console.error('Error handling WebSocket message:', error);
       }
     };
 
     window.addEventListener('message', handleWebSocketMessage);
-
     return () => {
       window.removeEventListener('message', handleWebSocketMessage);
     };
-  }, [propertyId]);
+  }, [propertyId, toast]);
 
   // Filter out system messages for cleaner display
-  const displayMessages = messages.filter(msg => 
-    msg.type === 'message' || 
-    (msg.type === 'join' && msg.userId !== user?.id) || 
+  const displayMessages = messages.filter(msg =>
+    msg.type === 'message' ||
+    (msg.type === 'join' && msg.userId !== user?.id) ||
     (msg.type === 'leave' && msg.userId !== user?.id)
   );
 
