@@ -25,11 +25,14 @@ import {
   ChevronUp,
   Wallet,
   Star,
-  AlertCircle
+  AlertCircle,
+  CheckCircle,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { useState } from "react";
+import { Textarea } from "@/components/ui/textarea";
+
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
   if (category === "luxury") return Castle;
@@ -43,6 +46,7 @@ export default function ConnectionsDashboard() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [expandedProperties, setExpandedProperties] = useState<number[]>([]);
+  const [notes, setNotes] = useState({}); //Added state for tenant notes
 
   // For landowners: fetch their properties
   const { data: properties, isLoading: propertiesLoading } = useQuery<Property[]>({
@@ -114,6 +118,18 @@ export default function ConnectionsDashboard() {
       request => request.status === "pending"
     ).length;
   };
+
+  const reviewRequestMutation = useMutation({ //Added mutation for review
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("PUT", `/api/maintenance-requests/${data.id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/maintenance-requests/all"] });
+      toast({ title: "Maintenance request updated successfully" });
+    },
+  });
+
 
   if (propertiesLoading || contractsLoading || myContractsLoading) {
     return (
@@ -281,6 +297,8 @@ export default function ConnectionsDashboard() {
 
                 const PropertyIcon = getPropertyIcon(property.type, property.category);
                 const isActiveConnection = contract.contractStatus === "active";
+                const isLandowner = user?.role === "landowner"; //Added for conditional rendering
+
 
                 return (
                   <Card key={contract.id} className="flex flex-col">
@@ -319,7 +337,54 @@ export default function ConnectionsDashboard() {
                           )}
                         </div>
 
-                        {isActiveConnection && (
+                        {/* Tenant Actions */}
+                        {isActiveConnection && maintenanceRequests && maintenanceRequests[property.id] && maintenanceRequests[property.id].map((request) => (
+                          <>
+                            {!isLandowner && request.status === "needs_review" && (
+                              <div className="mt-4 space-y-4">
+                                <div className="text-sm text-muted-foreground">
+                                  <strong>Landlord Notes:</strong> {request.landlordNotes || "No notes provided"}
+                                </div>
+                                <Textarea
+                                  placeholder="Add your review of the maintenance work..."
+                                  value={notes[request.id] || ""}
+                                  onChange={(e) => setNotes({ ...notes, [request.id]: e.target.value })}
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="flex-1"
+                                    onClick={() => reviewRequestMutation.mutate({
+                                      id: request.id,
+                                      status: "completed",
+                                      tenantReview: notes[request.id]
+                                    })}
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Approve & Close
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="flex-1"
+                                    onClick={() => reviewRequestMutation.mutate({
+                                      id: request.id,
+                                      status: "cancelled",
+                                      tenantReview: notes[request.id]
+                                    })}
+                                  >
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    Reject
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        ))}
+
+                        {/* Show maintenance history for tenants */}
+                        {!isLandowner && isActiveConnection && (
                           <div className="space-y-4 mt-6">
                             <div className="flex items-center space-x-2">
                               <WrenchIcon className="h-4 w-4" />
