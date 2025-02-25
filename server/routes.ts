@@ -109,19 +109,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const property = await storage.getPropertyById(propertyId);
 
       if (!property) {
-        return res.status(404).json({ error: "Property not found" });
+        res.status(404);
+        res.json({ error: "Property not found" });
+        return;
       }
+
       if (property.ownerId !== req.user!.id) {
-        return res.status(403).json({ error: "You do not own this property" });
+        res.status(403);
+        res.json({ error: "Not authorized" });
+        return;
       }
 
-      const connectionCode = crypto.randomBytes(4).toString('hex').toUpperCase();
-      await storage.updatePropertyConnectionCode(propertyId, connectionCode);
+      const code = crypto.randomBytes(4).toString('hex').toUpperCase();
+      await storage.updatePropertyConnectionCode(propertyId, code);
 
-      res.json({ connectionCode });
-    } catch (error) {
-      console.error('Error generating connection code:', error);
-      res.status(500).json({ error: "Failed to generate connection code" });
+      res.json({ connectionCode: code });
+    } catch (err) {
+      console.error('Error:', err);
+      res.status(500);
+      res.json({ error: "Server error" });
     }
   });
 
