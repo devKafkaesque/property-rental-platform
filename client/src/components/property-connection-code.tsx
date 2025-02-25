@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -10,16 +10,32 @@ interface PropertyConnectionCodeProps {
   connectionCode: string | null;
 }
 
-export default function PropertyConnectionCode({ propertyId, connectionCode }: PropertyConnectionCodeProps) {
+export default function PropertyConnectionCode({ propertyId, connectionCode: initialConnectionCode }: PropertyConnectionCodeProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [currentCode, setCurrentCode] = useState(initialConnectionCode);
+  const queryClient = useQueryClient();
 
   const generateCodeMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`);
-      return res.json();
+      const data = await res.json();
+      return data;
     },
     onSuccess: (data) => {
+      setCurrentCode(data.connectionCode);
+      // Update the property in the cache with the new connection code
+      queryClient.setQueriesData(
+        { queryKey: ["/api/properties/owner"] },
+        (oldData: any) => {
+          if (!oldData) return oldData;
+          return oldData.map((property: any) =>
+            property.id === propertyId
+              ? { ...property, connectionCode: data.connectionCode }
+              : property
+          );
+        }
+      );
       toast({
         title: "Connection code generated",
         description: "Share this code with your tenant to establish a connection.",
@@ -28,8 +44,8 @@ export default function PropertyConnectionCode({ propertyId, connectionCode }: P
   });
 
   const copyToClipboard = async () => {
-    if (connectionCode) {
-      await navigator.clipboard.writeText(connectionCode);
+    if (currentCode) {
+      await navigator.clipboard.writeText(currentCode);
       setCopied(true);
       toast({
         title: "Copied to clipboard",
@@ -39,7 +55,7 @@ export default function PropertyConnectionCode({ propertyId, connectionCode }: P
     }
   };
 
-  const shareLink = `${window.location.origin}/connect/${connectionCode}`;
+  const shareLink = `${window.location.origin}/connect/${currentCode}`;
 
   return (
     <div className="space-y-4">
@@ -54,10 +70,10 @@ export default function PropertyConnectionCode({ propertyId, connectionCode }: P
           ) : (
             <RefreshCw className="h-4 w-4 mr-2" />
           )}
-          {connectionCode ? "Regenerate Code" : "Generate Code"}
+          {currentCode ? "Regenerate Code" : "Generate Code"}
         </Button>
 
-        {connectionCode && (
+        {currentCode && (
           <Button
             variant="secondary"
             onClick={copyToClipboard}
@@ -69,10 +85,10 @@ export default function PropertyConnectionCode({ propertyId, connectionCode }: P
         )}
       </div>
 
-      {connectionCode && (
+      {currentCode && (
         <div className="mt-4 p-4 bg-muted rounded-lg">
           <p className="text-sm font-medium mb-2">Connection Code:</p>
-          <p className="font-mono text-lg">{connectionCode}</p>
+          <p className="font-mono text-lg">{currentCode}</p>
           <p className="text-sm text-muted-foreground mt-2">
             Share this code with your tenant or send them this link:
           </p>
