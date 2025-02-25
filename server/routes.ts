@@ -2,12 +2,12 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { 
-  insertPropertySchema, 
-  insertViewingRequestSchema, 
-  insertBookingSchema, 
-  insertReviewSchema, 
-  insertTenantContractSchema 
+import {
+  insertPropertySchema,
+  insertViewingRequestSchema,
+  insertBookingSchema,
+  insertReviewSchema,
+  insertTenantContractSchema
 } from "@shared/schema";
 import multer from "multer";
 import path from "path";
@@ -155,13 +155,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json({ error: "Property is not available for connection" });
       }
 
+      // Calculate end date (1 year from start)
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setFullYear(endDate.getFullYear() + 1);
+
       // Create tenant contract
       const contract = await storage.createTenantContract({
         propertyId: property.id,
         tenantId: req.user!.id,
         landownerId: property.ownerId,
-        startDate: new Date(),
-        endDate: null,
+        startDate,
+        endDate,
         contractStatus: "active",
         depositPaid: false,
         rentAmount: property.rentPrice,
@@ -176,9 +181,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ success: true, propertyId: property.id });
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Error connecting to property:', err);
+      if (err instanceof Error) {
+        res.status(400);
+        return res.json({ error: err.message });
+      }
       res.status(500);
-      res.json({ error: "Server error" });
+      return res.json({ error: "Failed to connect to property" });
     }
   });
 
@@ -194,8 +203,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if tenant has an active request for this property
       const existingRequests = await storage.getViewingRequestsByTenant(req.user!.id);
       const hasActiveRequest = existingRequests.some(request => {
-        return request.propertyId === data.propertyId && 
-               request.tenantId === req.user!.id && 
+        return request.propertyId === data.propertyId &&
+               request.tenantId === req.user!.id &&
                request.status !== 'cancelled' &&
                request.status !== 'completed';
       });
@@ -282,8 +291,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Verify tenant is connected to the property
       const contracts = await storage.getTenantContractsByTenant(req.user!.id);
-      const isConnected = contracts.some(contract => 
-        contract.propertyId === data.propertyId && 
+      const isConnected = contracts.some(contract =>
+        contract.propertyId === data.propertyId &&
         contract.contractStatus === "active"
       );
 

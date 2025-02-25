@@ -1,0 +1,101 @@
+> rest-express@1.0.0 dev
+Connected to MongoDB successfully
+3:13:58 PM [express] serving on port 5000
+Retrieved properties: [
+  {
+    _id: new ObjectId('67bdccf2f21c1f31aa4cf481'),
+    id: 1,
+    name: 'Taj Mahal',
+    description: 'A well-maintained property in a desirable location.',
+    address: 'Agra, Uttar Pradesh',
+    type: 'villa',
+    furnished: 'full',
+    wifi: true,
+    condition: 'splendid',
+    status: 'available',
+    category: 'luxury',
+    ownerId: 1,
+    images: [ '/uploads/1740492017164-260707149.png' ],
+    bedrooms: 4,
+    bathrooms: 9,
+    squareFootage: 25000,
+    yearBuilt: null,
+    parkingSpaces: 0,
+    petsAllowed: false,
+    utilities: [],
+    amenities: [],
+    accessibility: [],
+    securityFeatures: [],
+    maintainanceHistory: [],
+    rentPrice: 2000,
+    depositAmount: 2000,
+    connectionCode: '9F0B2056',
+    createdAt: 2025-02-25T14:00:18.564Z,
+    __v: 0
+  }
+]
+3:14:20 PM [express] GET /api/user 304 in 697ms :: {"_id":"67bdce7ccdde1175b77adc08","id":3,"usernam…
+3:14:20 PM [express] GET /api/properties 304 in 940ms :: [{"_id":"67bdccf2f21c1f31aa4cf481","id":1,"…
+Retrieved properties: [
+  {
+    _id: new ObjectId('67bdccf2f21c1f31aa4cf481'),
+    id: 1,
+    name: 'Taj Mahal',
+    description: 'A well-maintained property in a desirable location.',
+    address: 'Agra, Uttar Pradesh',
+    type: 'villa',
+    furnished: 'full',
+    wifi: true,
+    condition: 'splendid',
+    status: 'available',
+    category: 'luxury',
+    ownerId: 1,
+    images: [ '/uploads/1740492017164-260707149.png' ],
+    bedrooms: 4,
+    bathrooms: 9,
+    squareFootage: 25000,
+    yearBuilt: null,
+    parkingSpaces: 0,
+    petsAllowed: false,
+    utilities: [],
+    amenities: [],
+    accessibility: [],
+    securityFeatures: [],
+    maintainanceHistory: [],
+    rentPrice: 2000,
+    depositAmount: 2000,
+    connectionCode: '9F0B2056',
+    createdAt: 2025-02-25T14:00:18.564Z,
+    __v: 0
+  }
+]
+3:14:22 PM [express] GET /api/user 304 in 704ms :: {"_id":"67bdce7ccdde1175b77adc08","id":3,"usernam…
+3:14:22 PM [express] GET /api/properties 304 in 934ms :: [{"_id":"67bdccf2f21c1f31aa4cf481","id":1,"…
+3:14:25 PM [express] GET /api/bookings/tenant 200 in 715ms
+Error: Error: TenantContract validation failed: endDate: Path `endDate` is required.
+    at ValidationError.inspect (/home/runner/workspace/node_modules/mongoose/lib/error/validation.js:52:26)
+    at formatValue (node:internal/util/inspect:809:19)
+    at inspect (node:internal/util/inspect:368:10)
+    at formatWithOptionsInternal (node:internal/util/inspect:2307:40)
+    at formatWithOptions (node:internal/util/inspect:2169:10)
+    at console.value (node:internal/console/constructor:350:14)
+    at console.warn (node:internal/console/constructor:383:61)
+    at <anonymous> (/home/runner/workspace/server/routes.ts:179:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5) {
+  errors: {
+    endDate: ValidatorError: Path `endDate` is required.
+        at validate (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1404:13)
+        at SchemaType.doValidate (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1388:7)
+        at /home/runner/workspace/node_modules/mongoose/lib/document.js:3082:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:77:11) {
+      properties: [Object],
+      kind: 'required',
+      path: 'endDate',
+      value: null,
+      reason: undefined,
+      [Symbol(mongoose#validatorError)]: true
+    }
+  },
+  _message: 'TenantContract validation failed'
+}
+3:14:38 PM [express] POST /api/properties/connect/9F0B2056 500 in 1190ms :: {"error":"Server error"}
