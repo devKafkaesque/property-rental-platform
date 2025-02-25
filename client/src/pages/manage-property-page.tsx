@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Home, Hotel, Castle, Loader2, ArrowLeft, Edit2, X, Upload } from "lucide-react";
+import { Building2, Home, Hotel, Castle, Loader2, ArrowLeft, Edit2, X, Upload, BedDouble, Bath, Ruler, DollarSign, MapPin, Wifi, CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -132,22 +132,78 @@ export default function ManagePropertyPage() {
                   <h3 className="font-semibold text-lg">{property.name}</h3>
                   <p className="text-muted-foreground">{property.description}</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
                   <div>
-                    <h4 className="font-medium">Address</h4>
-                    <p className="text-sm text-muted-foreground">{property.address}</p>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <h4 className="font-medium">Address</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{property.address}</p>
                   </div>
+
                   <div>
-                    <h4 className="font-medium">Property Type</h4>
-                    <p className="text-sm text-muted-foreground">{property.type} - {property.furnished}</p>
+                    <div className="flex items-center gap-2">
+                      <PropertyIcon className="h-4 w-4 text-muted-foreground" />
+                      <h4 className="font-medium">Property Type</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{property.type} - {property.furnished}</p>
                   </div>
+
                   <div>
-                    <h4 className="font-medium">WiFi</h4>
-                    <p className="text-sm text-muted-foreground">{property.wifi ? "Available" : "Not Available"}</p>
+                    <div className="flex items-center gap-2">
+                      <BedDouble className="h-4 w-4 text-muted-foreground" />
+                      <h4 className="font-medium">Bedrooms</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{property.bedrooms}</p>
                   </div>
+
                   <div>
-                    <h4 className="font-medium">Condition</h4>
-                    <p className="text-sm text-muted-foreground">{property.condition}</p>
+                    <div className="flex items-center gap-2">
+                      <Bath className="h-4 w-4 text-muted-foreground" />
+                      <h4 className="font-medium">Bathrooms</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{property.bathrooms}</p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Ruler className="h-4 w-4 text-muted-foreground" />
+                      <h4 className="font-medium">Square Footage</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{property.squareFootage} sq ft</p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Wifi className={`h-4 w-4 ${property.wifi ? "text-green-500" : "text-gray-400"}`} />
+                      <h4 className="font-medium">WiFi</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{property.wifi ? "Available" : "Not Available"}</p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <h4 className="font-medium">Monthly Rent</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">${property.rentPrice}</p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <h4 className="font-medium">Security Deposit</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">${property.depositAmount}</p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                      <h4 className="font-medium">Condition</h4>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">{property.condition}</p>
                   </div>
                 </div>
               </CardContent>

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Building2, Home, Hotel, Castle, Loader2, X, Wifi, CheckCircle2, Info, MapPin } from "lucide-react";
+import { Building2, Home, Hotel, Castle, Loader2, X, Wifi, CheckCircle2, Info, MapPin, BedDouble, Bath, Ruler, DollarSign } from "lucide-react";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import PropertyImageCarousel from "@/components/property-image-carousel";
@@ -115,7 +115,7 @@ export default function PropertyPage() {
 
             <h1 className="text-3xl font-bold mb-4">{property.name}</h1>
 
-            <div className="space-y-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <MapPin className="h-5 w-5" />
                 <span>{property.address}</span>
@@ -134,24 +134,49 @@ export default function PropertyPage() {
               </div>
 
               <div className="flex items-center gap-2 text-muted-foreground">
+                <BedDouble className="h-5 w-5" />
+                <span>{property.bedrooms} Bedroom{property.bedrooms > 1 ? 's' : ''}</span>
+              </div>
+
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Bath className="h-5 w-5" />
+                <span>{property.bathrooms} Bathroom{property.bathrooms > 1 ? 's' : ''}</span>
+              </div>
+
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Ruler className="h-5 w-5" />
+                <span>{property.squareFootage} sq ft</span>
+              </div>
+
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <DollarSign className="h-5 w-5" />
+                <span>Rent: ${property.rentPrice}/month</span>
+              </div>
+
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <DollarSign className="h-5 w-5" />
+                <span>Deposit: ${property.depositAmount}</span>
+              </div>
+
+              <div className="flex items-center gap-2 text-muted-foreground">
                 <CheckCircle2 className="h-5 w-5" />
                 <span>Condition: {property.condition}</span>
               </div>
-
-              {property.restrictions && Object.keys(property.restrictions).length > 0 && (
-                <div className="flex items-start gap-2 text-muted-foreground">
-                  <Info className="h-5 w-5 mt-1" />
-                  <div>
-                    <span className="font-medium">Restrictions:</span>
-                    <ul className="list-disc list-inside ml-2">
-                      {Object.entries(property.restrictions).map(([key, value]) => (
-                        <li key={key}>{`${key}: ${value}`}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              )}
             </div>
+
+            {property.restrictions && Object.keys(property.restrictions).length > 0 && (
+              <div className="flex items-start gap-2 text-muted-foreground border-t pt-4">
+                <Info className="h-5 w-5 mt-1" />
+                <div>
+                  <span className="font-medium">Restrictions:</span>
+                  <ul className="list-disc list-inside ml-2">
+                    {Object.entries(property.restrictions).map(([key, value]) => (
+                      <li key={key}>{`${key}: ${value}`}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
 
             <Card className="mb-6">
               <CardHeader>
