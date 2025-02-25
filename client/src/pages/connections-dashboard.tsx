@@ -16,7 +16,7 @@ import {
 import MaintenanceRequestForm from "@/components/maintenance-request-form";
 import MaintenanceRequestList from "@/components/maintenance-request-list";
 import {
-  Building2, Home, Hotel, Castle, Loader2, Key, RefreshCw,
+  Building2, Home, Hotel, Castle, Loader2, Key,
   Users, LinkIcon, CheckCircle2, XCircle, ArrowLeft, WrenchIcon,
   ClipboardList, ChevronDown, ChevronUp, Wallet, Star,
   AlertCircle, CheckCircle, UserX, History, Clock
@@ -69,6 +69,37 @@ export default function ConnectionsDashboard() {
     enabled: !!user && user.role === "landowner",
   });
 
+  // Request deposit return mutation
+  const requestDepositMutation = useMutation({
+    mutationFn: async (propertyId: number) => {
+      await apiRequest("POST", `/api/properties/${propertyId}/request-deposit`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tenant-contracts/landowner"] });
+      toast({
+        title: "Success",
+        description: "Deposit return request has been submitted.",
+      });
+    },
+  });
+
+  // Handle deposit return mutation (for landlords)
+  const handleDepositMutation = useMutation({
+    mutationFn: async (data: { propertyId: number; contractId: number; status: "approved" | "rejected" }) => {
+      await apiRequest("POST", `/api/properties/${data.propertyId}/handle-deposit`, {
+        contractId: data.contractId,
+        status: data.status,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tenant-contracts/landowner"] });
+      toast({
+        title: "Success",
+        description: "Deposit return request has been handled.",
+      });
+    },
+  });
+
   // Modified disconnect mutation for landowners
   const disconnectTenantMutation = useMutation({
     mutationFn: async (data: {
@@ -110,6 +141,53 @@ export default function ConnectionsDashboard() {
       </div>
     );
   }
+
+  const renderContractHistory = (contract: TenantContract) => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-medium">Tenant ID: {contract.tenantId}</p>
+          <p className="text-sm text-muted-foreground">
+            {contract.contractStatus === "active" ? (
+              <>Connected since {new Date(contract.startDate).toLocaleDateString()}</>
+            ) : (
+              <>
+                {new Date(contract.startDate).toLocaleDateString()} - {" "}
+                {contract.terminatedAt ? new Date(contract.terminatedAt).toLocaleDateString() : "Present"}
+              </>
+            )}
+          </p>
+        </div>
+        <span className={`
+          px-2 py-1 rounded-full text-sm
+          ${contract.contractStatus === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
+        `}>
+          {contract.contractStatus}
+        </span>
+      </div>
+
+      <div className="mt-2 text-sm">
+        <p className="flex items-center gap-2">
+          <Wallet className="h-4 w-4" />
+          Deposit Status: {
+            contract.depositRequested
+              ? `Return ${contract.depositReturnStatus}`
+              : contract.depositPaid
+                ? "Paid"
+                : "Not Paid"
+          }
+        </p>
+      </div>
+
+      <div className="border-t pt-4">
+        <div className="flex items-center space-x-2 mb-2">
+          <WrenchIcon className="h-4 w-4" />
+          <h3 className="font-medium">Maintenance Requests</h3>
+        </div>
+        <MaintenanceRequestList propertyId={contract.propertyId} contractId={contract.id}/>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -180,29 +258,53 @@ export default function ConnectionsDashboard() {
                         {contractsToShow.length > 0 ? (
                           contractsToShow.map((contract) => (
                             <div key={contract.id} className="border rounded-lg p-4 mt-4">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-medium">Tenant ID: {contract.tenantId}</p>
-                                  <p className="text-sm text-muted-foreground">
-                                    Connected since {new Date(contract.startDate).toLocaleDateString()}
-                                  </p>
+                              {renderContractHistory(contract)}
+                              {contract.contractStatus === "active" && (
+                                <div className="flex justify-end gap-2 mt-4">
+                                  {contract.depositRequested && contract.depositReturnStatus === "pending" ? (
+                                    <>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleDepositMutation.mutate({
+                                          propertyId: property.id,
+                                          contractId: contract.id,
+                                          status: "approved"
+                                        })}
+                                      >
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Approve Deposit
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleDepositMutation.mutate({
+                                          propertyId: property.id,
+                                          contractId: contract.id,
+                                          status: "rejected"
+                                        })}
+                                      >
+                                        <XCircle className="h-4 w-4 mr-2" />
+                                        Reject Deposit
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setDisconnectDialog({
+                                        isOpen: true,
+                                        propertyId: property.id,
+                                        contractId: contract.id,
+                                        tenantId: contract.tenantId
+                                      })}
+                                    >
+                                      <UserX className="h-4 w-4 mr-2" />
+                                      Disconnect Tenant
+                                    </Button>
+                                  )}
                                 </div>
-                                {contract.contractStatus === "active" && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setDisconnectDialog({
-                                      isOpen: true,
-                                      propertyId: property.id,
-                                      contractId: contract.id,
-                                      tenantId: contract.tenantId
-                                    })}
-                                  >
-                                    <UserX className="h-4 w-4 mr-2" />
-                                    Disconnect Tenant
-                                  </Button>
-                                )}
-                              </div>
+                              )}
                             </div>
                           ))
                         ) : (
