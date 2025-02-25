@@ -27,7 +27,7 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
         // Use the specific WebSocket path
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const host = window.location.host;
-        const wsUrl = `${protocol}//${host}/api/ws/property-updates`;
+        const wsUrl = `${protocol}//${host}/api/ws/property-updates`;  // Changed path
 
         ws = new WebSocket(wsUrl);
 
@@ -38,8 +38,9 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            if (data.type === 'PROPERTY_UPDATED' && data.propertyId === propertyId) {
-              // Invalidate and refetch property data
+            if (data.type === 'CONNECTED') {
+              console.log('WebSocket connection confirmed');
+            } else if (data.type === 'PROPERTY_UPDATED' && data.propertyId === propertyId) {
               queryClient.invalidateQueries({ 
                 queryKey: [`/api/properties/owner/${user?.id}`]
               });
@@ -55,20 +56,17 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
 
         ws.onclose = () => {
           console.log('WebSocket closed, attempting to reconnect...');
-          // Try to reconnect after 5 seconds
           reconnectTimeout = setTimeout(connectWebSocket, 5000);
         };
 
       } catch (error) {
         console.error('Error setting up WebSocket:', error);
-        // Try to reconnect after 5 seconds
         reconnectTimeout = setTimeout(connectWebSocket, 5000);
       }
     };
 
     connectWebSocket();
 
-    // Clean up on unmount
     return () => {
       if (reconnectTimeout) {
         clearTimeout(reconnectTimeout);
