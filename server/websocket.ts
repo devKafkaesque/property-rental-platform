@@ -47,10 +47,14 @@ class ChatServer {
     });
   }
 
-  private handleMessage(ws: WebSocket, message: ChatMessage) {
+  private handleMessage(ws: WebSocket, message: ChatMessage & { role?: 'tenant' | 'landowner' }) {
     switch (message.type) {
       case 'join':
-        this.handleJoin(ws, message);
+        if (!message.role) {
+          log('Error: Role not provided in join message');
+          return;
+        }
+        this.handleJoin(ws, { ...message, role: message.role });
         break;
       case 'message':
         this.broadcastToPropertyGroup(message);
@@ -107,7 +111,7 @@ class ChatServer {
   private handleDisconnect(ws: WebSocket) {
     let disconnectedClient: ChatClient | undefined;
 
-    for (const [userId, client] of this.clients) {
+    for (const [userId, client] of this.clients.entries()) {
       if (client.ws === ws) {
         disconnectedClient = client;
         this.clients.delete(userId);
@@ -117,7 +121,7 @@ class ChatServer {
 
     if (disconnectedClient) {
       // Remove user from all property groups
-      for (const [propertyId, members] of this.propertyGroups) {
+      for (const [propertyId, members] of this.propertyGroups.entries()) {
         if (members.has(disconnectedClient.userId)) {
           members.delete(disconnectedClient.userId);
           this.broadcastToPropertyGroup({

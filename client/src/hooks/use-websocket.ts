@@ -21,11 +21,15 @@ export function useWebSocket(propertyId: number) {
   const connect = useCallback(() => {
     if (!user || !propertyId) return;
 
+    // Close existing connection if any
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const hostname = window.location.hostname;
-    // Use the same port as the current connection
-    const port = window.location.port || '5000';
-    const wsUrl = `${protocol}//${hostname}:${port}/ws/chat`;
+    // Use current window location for WebSocket connection
+    const wsUrl = `${protocol}//${window.location.host}/ws/chat`;
 
     console.log('Connecting to WebSocket at:', wsUrl);
 
@@ -51,7 +55,7 @@ export function useWebSocket(propertyId: number) {
       try {
         const message = JSON.parse(event.data) as ChatMessage;
         console.log('Received message:', message);
-        // Customize this in the consuming component (e.g., via a callback)
+        // Handle message in parent component
       } catch (error) {
         console.error('Error parsing message:', error);
       }
