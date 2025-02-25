@@ -11,6 +11,7 @@ import ManagePropertyPage from "@/pages/manage-property-page";
 import Dashboard from "@/pages/dashboard";
 import ConnectPage from "@/pages/connect";
 import ConnectionsDashboard from "@/pages/connections-dashboard";
+import { ChatContainer } from "@/components/chat/chat-container";
 import { ProtectedRoute } from "./lib/protected-route";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
       <ProtectedRoute path="/dashboard" component={Dashboard} />
       <ProtectedRoute path="/connect" component={ConnectPage} />
       <ProtectedRoute path="/connections" component={ConnectionsDashboard} />
+      <ProtectedRoute path="/chat" component={ChatContainer} />
       <Route path="/property/:id" component={ViewPropertyPage} />
       <ProtectedRoute path="/property/:id/manage" component={ManagePropertyPage} />
       <Route component={NotFound} />

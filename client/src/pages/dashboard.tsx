@@ -6,7 +6,7 @@ import PropertyCard from "@/components/property-card";
 import PropertySearch from "@/components/property-search";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, LogOut, Link as LinkIcon, Building2 } from "lucide-react";
+import { Loader2, LogOut, Link as LinkIcon, Building2, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import {
@@ -71,6 +71,12 @@ export default function Dashboard() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold">Welcome, {user.username}!</h1>
           <div className="flex items-center gap-4">
+            <Link href="/chat">
+              <Button variant="outline">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Chat
+              </Button>
+            </Link>
             <Link href="/connections">
               <Button variant="outline">
                 <Building2 className="h-4 w-4 mr-2" />
