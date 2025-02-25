@@ -1,0 +1,73 @@
+1:39:36 PM [express] POST /api/upload 200 in 704ms :: {"urls":["/uploads/1740490776527-358711809.png…
+/home/runner/workspace/node_modules/mongoose/lib/document.js:3329
+    this.$__.validationError = new ValidationError(this);
+                               ^
+
+ValidationError: Property validation failed: squareFootage: Path `squareFootage` is required., bathrooms: Path `bathrooms` is required., bedrooms: Path `bedrooms` is required.
+    at Document.invalidate (/home/runner/workspace/node_modules/mongoose/lib/document.js:3329:32)
+    at /home/runner/workspace/node_modules/mongoose/lib/document.js:3090:17
+    at /home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1407:9
+    at process.processTicksAndRejections (node:internal/process/task_queues:77:11) {
+  errors: {
+    squareFootage: ValidatorError: Path `squareFootage` is required.
+        at validate (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1404:13)
+        at SchemaType.doValidate (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1388:7)
+        at /home/runner/workspace/node_modules/mongoose/lib/document.js:3082:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:77:11) {
+      properties: {
+        validator: [Function (anonymous)],
+        message: 'Path `squareFootage` is required.',
+        type: 'required',
+        path: 'squareFootage',
+        fullPath: undefined,
+        value: undefined
+      },
+      kind: 'required',
+      path: 'squareFootage',
+      value: undefined,
+      reason: undefined,
+      [Symbol(mongoose#validatorError)]: true
+    },
+    bathrooms: ValidatorError: Path `bathrooms` is required.
+        at validate (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1404:13)
+        at SchemaType.doValidate (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1388:7)
+        at /home/runner/workspace/node_modules/mongoose/lib/document.js:3082:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:77:11) {
+      properties: {
+        validator: [Function (anonymous)],
+        message: 'Path `bathrooms` is required.',
+        type: 'required',
+        path: 'bathrooms',
+        fullPath: undefined,
+        value: undefined
+      },
+      kind: 'required',
+      path: 'bathrooms',
+      value: undefined,
+      reason: undefined,
+      [Symbol(mongoose#validatorError)]: true
+    },
+    bedrooms: ValidatorError: Path `bedrooms` is required.
+        at validate (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1404:13)
+        at SchemaType.doValidate (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1388:7)
+        at /home/runner/workspace/node_modules/mongoose/lib/document.js:3082:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:77:11) {
+      properties: {
+        validator: [Function (anonymous)],
+        message: 'Path `bedrooms` is required.',
+        type: 'required',
+        path: 'bedrooms',
+        fullPath: undefined,
+        value: undefined
+      },
+      kind: 'required',
+      path: 'bedrooms',
+      value: undefined,
+      reason: undefined,
+      [Symbol(mongoose#validatorError)]: true
+    }
+  },
+  _message: 'Property validation failed'
+}
+
+Node.js v20.18.1

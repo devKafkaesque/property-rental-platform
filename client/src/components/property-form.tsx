@@ -13,7 +13,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Upload, X, Loader2, DollarSign } from "lucide-react";
+import { Upload, X, Loader2, DollarSign, Home } from "lucide-react";
 import { AIPropertyHelper } from "./ai-property-helper";
 
 interface PropertyFormProps {
@@ -42,6 +42,9 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
       images: [],
       rentPrice: 0,
       depositAmount: 0,
+      bedrooms: 1,
+      bathrooms: 1,
+      squareFootage: 0,
     },
   });
 
@@ -120,6 +123,18 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
           throw new Error("Deposit amount must be greater than 0");
         }
 
+        if (data.squareFootage <= 0) {
+          throw new Error("Square footage must be greater than 0");
+        }
+
+        if (data.bedrooms <= 0) {
+          throw new Error("Number of bedrooms must be greater than 0");
+        }
+
+        if (data.bathrooms <= 0) {
+          throw new Error("Number of bathrooms must be greater than 0");
+        }
+
         let imageUrls: string[] = [];
         if (selectedImages.length > 0) {
           console.log('Uploading images...');
@@ -131,6 +146,9 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
           images: imageUrls,
           rentPrice: Number(data.rentPrice),
           depositAmount: Number(data.depositAmount),
+          squareFootage: Number(data.squareFootage),
+          bedrooms: Number(data.bedrooms),
+          bathrooms: Number(data.bathrooms),
         };
 
         console.log('Final property data:', propertyData);
@@ -168,7 +186,9 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
           type: form.watch("type"),
           location: form.watch("address"),
           features: [],
-          condition: form.watch("condition"),
+          bedrooms: form.watch("bedrooms"),
+          bathrooms: form.watch("bathrooms"),
+          squareFootage: form.watch("squareFootage"),
           amenities: [form.watch("wifi") ? "WiFi" : ""].filter(Boolean),
         }}
         onDescriptionGenerated={handleDescriptionGenerated}
@@ -237,6 +257,74 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
               </FormItem>
             )}
           />
+
+          <div className="grid grid-cols-3 gap-4">
+            <FormField
+              control={form.control}
+              name="bedrooms"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bedrooms *</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Number of bedrooms"
+                      {...field}
+                      value={field.value}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber || 1)}
+                      required
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="bathrooms"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bathrooms *</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Number of bathrooms"
+                      {...field}
+                      value={field.value}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber || 1)}
+                      required
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="squareFootage"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Square Footage *</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="1"
+                      placeholder="Square footage"
+                      {...field}
+                      value={field.value}
+                      onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                      required
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
 
           <FormField
             control={form.control}
@@ -308,9 +396,13 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
             name="condition"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Property Condition</FormLabel>
+                <FormLabel>Property Condition *</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter property condition" {...field} />
+                  <Input 
+                    placeholder="Enter property condition" 
+                    {...field}
+                    required 
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

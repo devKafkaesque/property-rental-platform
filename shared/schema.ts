@@ -50,7 +50,36 @@ export const properties = pgTable("properties", {
   maintainanceHistory: jsonb("maintainance_history").default([]),
   rentPrice: integer("rent_price").notNull(),
   depositAmount: integer("deposit_amount").notNull(),
-  connectionCode: text("connection_code").unique(), // Added unique code field
+  connectionCode: text("connection_code").unique(),
+});
+
+export const insertPropertySchema = createInsertSchema(properties).pick({
+  name: true,
+  description: true,
+  address: true,
+  type: true,
+  furnished: true,
+  wifi: true,
+  restrictions: true,
+  condition: true,
+  category: true,
+  images: true,
+  bedrooms: true,
+  bathrooms: true,
+  squareFootage: true,
+  rentPrice: true,
+  depositAmount: true,
+}).extend({
+  type: PropertyType,
+  furnished: FurnishedType,
+  category: PropertyCategory,
+  images: z.array(z.string()).default([]),
+  restrictions: z.record(z.any()).default({}),
+  rentPrice: z.number().min(1, "Rent price must be greater than 0"),
+  depositAmount: z.number().min(1, "Deposit amount must be greater than 0"),
+  bedrooms: z.number().min(1, "At least one bedroom is required"),
+  bathrooms: z.number().min(1, "At least one bathroom is required"),
+  squareFootage: z.number().min(1, "Square footage must be greater than 0"),
 });
 
 export const tenantContracts = pgTable("tenant_contracts", {
@@ -138,38 +167,6 @@ export const insertUserSchema = createInsertSchema(users).pick({
   username: z.string().min(3, "Username must be at least 3 characters"),
 });
 
-export const insertPropertySchema = createInsertSchema(properties).pick({
-  name: true,
-  description: true,
-  address: true,
-  type: true,
-  furnished: true,
-  wifi: true,
-  restrictions: true,
-  condition: true,
-  category: true,
-  images: true,
-  rentPrice: true,
-  depositAmount: true,
-}).extend({
-  type: PropertyType,
-  furnished: FurnishedType,
-  category: PropertyCategory,
-  images: z.array(z.string()).default([]),
-  restrictions: z.record(z.any()).default({}),
-  rentPrice: z.number().min(1, "Rent price must be greater than 0"),
-  depositAmount: z.number().min(1, "Deposit amount must be greater than 0"),
-  bedrooms: z.number().optional(),
-  bathrooms: z.number().optional(),
-  squareFootage: z.number().optional(),
-  yearBuilt: z.number().optional(),
-  parkingSpaces: z.number().optional(),
-  petsAllowed: z.boolean().optional(),
-  utilities: z.array(z.string()).optional(),
-  amenities: z.array(z.string()).optional(),
-  accessibility: z.array(z.string()).optional(),
-  securityFeatures: z.array(z.string()).optional(),
-});
 
 export const insertBookingSchema = createInsertSchema(bookings).pick({
   propertyId: true,
