@@ -452,7 +452,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add these routes after the existing maintenance request routes
+  // Add this route after the other maintenance request routes
+  app.get("/api/maintenance-requests/all", ensureLandowner, async (req, res) => {
+    try {
+      // Get all properties owned by the landlord
+      const properties = await storage.getPropertiesByOwner(req.user!.id);
+
+      // Get maintenance requests for all properties
+      const requests = await Promise.all(
+        properties.map(async (property) => {
+          const propertyRequests = await storage.getMaintenanceRequestsByProperty(property.id);
+          const requestsWithTenants = await Promise.all(propertyRequests.map(async request => {
+            const tenant = await storage.getUser(request.tenantId);
+            return {
+              ...request,
+              tenantName: tenant?.username || 'Unknown User'
+            };
+          }));
+          return {
+            propertyId: property.id,
+            requests: requestsWithTenants
+          };
+        })
+      );
+
+      // Format response as an object with propertyId keys
+      const response = requests.reduce((acc, curr) => {
+        acc[curr.propertyId] = curr.requests;
+        return acc;
+      }, {} as Record<number, any[]>);
+
+      res.json(response);
+    } catch (error) {
+      console.error('Error fetching all maintenance requests:', error);
+      res.status(500).json({ error: "Failed to fetch maintenance requests" });
+    }
+  });
+
   app.post("/api/maintenance-requests/:id/update", ensureLandowner, async (req, res) => {
     try {
       const { status, landlordNotes } = req.body;

@@ -24,7 +24,8 @@ import {
   ChevronDown,
   ChevronUp,
   Wallet,
-  Star
+  Star,
+  AlertCircle
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -55,6 +56,28 @@ export default function ConnectionsDashboard() {
     enabled: !!user && user.role === "landowner",
   });
 
+  // Query maintenance requests for each property
+  const { data: maintenanceRequests = {} } = useQuery({
+    queryKey: ["/api/maintenance-requests/all"],
+    enabled: !!user && user.role === "landowner",
+    queryFn: async () => {
+      if (!properties) return {};
+
+      const requests = await Promise.all(
+        properties.map(async (property) => {
+          const res = await apiRequest("GET", `/api/maintenance-requests/property/${property.id}`);
+          const data = await res.json();
+          return { propertyId: property.id, requests: data };
+        })
+      );
+
+      return requests.reduce((acc, curr) => {
+        acc[curr.propertyId] = curr.requests;
+        return acc;
+      }, {} as Record<number, any[]>);
+    }
+  });
+
   // For tenants: fetch their contracts
   const { data: myContracts, isLoading: myContractsLoading } = useQuery<TenantContract[]>({
     queryKey: ["/api/tenant-contracts/tenant"],
@@ -82,6 +105,14 @@ export default function ConnectionsDashboard() {
         ? prev.filter(id => id !== propertyId)
         : [...prev, propertyId]
     );
+  };
+
+  // Count pending maintenance requests for a property
+  const getPendingRequestsCount = (propertyId: number) => {
+    if (!maintenanceRequests[propertyId]) return 0;
+    return maintenanceRequests[propertyId].filter(
+      request => request.status === "pending"
+    ).length;
   };
 
   if (propertiesLoading || contractsLoading || myContractsLoading) {
@@ -115,6 +146,7 @@ export default function ConnectionsDashboard() {
                   (contract) => contract.propertyId === property.id
                 );
                 const isExpanded = expandedProperties.includes(property.id);
+                const pendingRequests = getPendingRequestsCount(property.id);
 
                 return (
                   <Card key={property.id} className="overflow-hidden">
@@ -128,14 +160,21 @@ export default function ConnectionsDashboard() {
                           <CardTitle className="text-lg">{property.name}</CardTitle>
                         </div>
                         <div className="flex items-center space-x-4">
-                          <span className={`
-                            px-2 py-1 rounded-full text-sm
-                            ${property.status === "available" ? "bg-green-100 text-green-800" :
-                              property.status === "rented" ? "bg-blue-100 text-blue-800" :
-                              "bg-gray-100 text-gray-800"}
-                          `}>
-                            {property.status}
-                          </span>
+                          <div className="flex items-center">
+                            <span className={`
+                              px-2 py-1 rounded-full text-sm
+                              ${property.status === "available" ? "bg-green-100 text-green-800" :
+                                property.status === "rented" ? "bg-blue-100 text-blue-800" :
+                                "bg-gray-100 text-gray-800"}
+                            `}>
+                              {property.status}
+                            </span>
+                            {pendingRequests > 0 && (
+                              <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+                                {pendingRequests}
+                              </span>
+                            )}
+                          </div>
                           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </div>
                       </div>
