@@ -15,15 +15,16 @@ interface ChatMessage {
 }
 
 interface ChatWindowProps {
-  groupId: string;
+  propertyId: number;
+  propertyName: string;
 }
 
-export function ChatWindow({ groupId }: ChatWindowProps) {
+export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { sendMessage } = useWebSocket(groupId);
+  const { sendMessage } = useWebSocket(propertyId);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -59,9 +60,9 @@ export function ChatWindow({ groupId }: ChatWindowProps) {
   return (
     <div className="flex flex-col h-[600px] border rounded-lg">
       <div className="p-4 border-b bg-muted">
-        <h3 className="font-semibold">Group Chat</h3>
+        <h3 className="font-semibold">{propertyName} Chat</h3>
       </div>
-      
+
       <ScrollArea className="flex-grow p-4">
         <div className="space-y-4">
           {messages.map((message, index) => (

@@ -6,6 +6,7 @@ interface ChatClient {
   ws: WebSocket;
   userId: number;
   username: string;
+  role: 'tenant' | 'landowner';
 }
 
 interface ChatMessage {
@@ -13,13 +14,13 @@ interface ChatMessage {
   userId: number;
   username: string;
   content: string;
-  groupId?: string;
+  propertyId: number;
   timestamp: number;
 }
 
 class ChatServer {
   private clients: Map<number, ChatClient> = new Map();
-  private groups: Map<string, Set<number>> = new Map();
+  private propertyGroups: Map<number, Set<number>> = new Map();
 
   constructor(server: Server) {
     const wss = new WebSocketServer({ 
@@ -52,7 +53,7 @@ class ChatServer {
         this.handleJoin(ws, message);
         break;
       case 'message':
-        this.broadcastToGroup(message);
+        this.broadcastToPropertyGroup(message);
         break;
       case 'leave':
         this.handleLeave(message);
@@ -60,44 +61,44 @@ class ChatServer {
     }
   }
 
-  private handleJoin(ws: WebSocket, message: ChatMessage) {
+  private handleJoin(ws: WebSocket, message: ChatMessage & { role: 'tenant' | 'landowner' }) {
     const client: ChatClient = {
       ws,
       userId: message.userId,
-      username: message.username
+      username: message.username,
+      role: message.role
     };
 
     this.clients.set(message.userId, client);
 
-    if (message.groupId) {
-      if (!this.groups.has(message.groupId)) {
-        this.groups.set(message.groupId, new Set());
-      }
-      this.groups.get(message.groupId)!.add(message.userId);
-
-      // Notify group about new member
-      this.broadcastToGroup({
-        type: 'join',
-        userId: message.userId,
-        username: message.username,
-        content: `${message.username} joined the group`,
-        groupId: message.groupId,
-        timestamp: Date.now()
-      });
+    // Add to property-specific group
+    if (!this.propertyGroups.has(message.propertyId)) {
+      this.propertyGroups.set(message.propertyId, new Set());
     }
+    this.propertyGroups.get(message.propertyId)!.add(message.userId);
+
+    // Notify group about new member
+    this.broadcastToPropertyGroup({
+      type: 'join',
+      userId: message.userId,
+      username: message.username,
+      content: `${message.username} (${message.role}) joined the chat`,
+      propertyId: message.propertyId,
+      timestamp: Date.now()
+    });
   }
 
   private handleLeave(message: ChatMessage) {
-    if (message.groupId && this.groups.has(message.groupId)) {
-      this.groups.get(message.groupId)!.delete(message.userId);
+    if (this.propertyGroups.has(message.propertyId)) {
+      this.propertyGroups.get(message.propertyId)!.delete(message.userId);
 
       // Notify group about member leaving
-      this.broadcastToGroup({
+      this.broadcastToPropertyGroup({
         type: 'leave',
         userId: message.userId,
         username: message.username,
-        content: `${message.username} left the group`,
-        groupId: message.groupId,
+        content: `${message.username} left the chat`,
+        propertyId: message.propertyId,
         timestamp: Date.now()
       });
     }
@@ -115,16 +116,16 @@ class ChatServer {
     }
 
     if (disconnectedClient) {
-      // Remove user from all groups
-      for (const [groupId, members] of this.groups) {
+      // Remove user from all property groups
+      for (const [propertyId, members] of this.propertyGroups) {
         if (members.has(disconnectedClient.userId)) {
           members.delete(disconnectedClient.userId);
-          this.broadcastToGroup({
+          this.broadcastToPropertyGroup({
             type: 'leave',
             userId: disconnectedClient.userId,
             username: disconnectedClient.username,
             content: `${disconnectedClient.username} disconnected`,
-            groupId,
+            propertyId,
             timestamp: Date.now()
           });
         }
@@ -132,10 +133,10 @@ class ChatServer {
     }
   }
 
-  private broadcastToGroup(message: ChatMessage) {
-    if (!message.groupId || !this.groups.has(message.groupId)) return;
+  private broadcastToPropertyGroup(message: ChatMessage) {
+    if (!this.propertyGroups.has(message.propertyId)) return;
 
-    const members = this.groups.get(message.groupId)!;
+    const members = this.propertyGroups.get(message.propertyId)!;
     const messageStr = JSON.stringify(message);
 
     for (const userId of members) {

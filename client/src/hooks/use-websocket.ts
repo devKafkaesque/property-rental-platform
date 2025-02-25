@@ -7,11 +7,11 @@ interface ChatMessage {
   userId: number;
   username: string;
   content: string;
-  groupId?: string;
+  propertyId: number;
   timestamp: number;
 }
 
-export function useWebSocket(groupId?: string) {
+export function useWebSocket(propertyId: number) {
   const wsRef = useRef<WebSocket | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -19,7 +19,7 @@ export function useWebSocket(groupId?: string) {
   const maxReconnectAttempts = 5;
 
   const connect = useCallback(() => {
-    if (!user) return;
+    if (!user || !propertyId) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const hostname = window.location.hostname;
@@ -33,18 +33,17 @@ export function useWebSocket(groupId?: string) {
     ws.onopen = () => {
       console.log('WebSocket Connected');
       reconnectAttempts.current = 0; // Reset on successful connection
-      if (groupId) {
-        ws.send(
-          JSON.stringify({
-            type: 'join',
-            userId: user.id,
-            username: user.username,
-            groupId,
-            content: '',
-            timestamp: Date.now(),
-          })
-        );
-      }
+      ws.send(
+        JSON.stringify({
+          type: 'join',
+          userId: user.id,
+          username: user.username,
+          role: user.role,
+          propertyId,
+          content: '',
+          timestamp: Date.now(),
+        })
+      );
     };
 
     ws.onmessage = (event) => {
@@ -86,22 +85,20 @@ export function useWebSocket(groupId?: string) {
 
     return () => {
       if (wsRef.current) {
-        if (groupId) {
-          wsRef.current.send(
-            JSON.stringify({
-              type: 'leave',
-              userId: user.id,
-              username: user.username,
-              groupId,
-              content: '',
-              timestamp: Date.now(),
-            })
-          );
-        }
+        wsRef.current.send(
+          JSON.stringify({
+            type: 'leave',
+            userId: user.id,
+            username: user.username,
+            propertyId,
+            content: '',
+            timestamp: Date.now(),
+          })
+        );
         wsRef.current.close();
       }
     };
-  }, [user, groupId, toast]);
+  }, [user, propertyId, toast]);
 
   useEffect(() => {
     const cleanup = connect();
@@ -112,8 +109,8 @@ export function useWebSocket(groupId?: string) {
 
   const sendMessage = useCallback(
     (content: string) => {
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !user || !groupId) {
-        console.warn('Cannot send message: WebSocket not connected or missing user/groupId');
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !user || !propertyId) {
+        console.warn('Cannot send message: WebSocket not connected or missing user/propertyId');
         return;
       }
 
@@ -122,13 +119,13 @@ export function useWebSocket(groupId?: string) {
         userId: user.id,
         username: user.username,
         content,
-        groupId,
+        propertyId,
         timestamp: Date.now(),
       };
 
       wsRef.current.send(JSON.stringify(message));
     },
-    [user, groupId]
+    [user, propertyId]
   );
 
   return { sendMessage };
