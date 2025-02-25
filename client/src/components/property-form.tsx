@@ -123,49 +123,30 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
           throw new Error("Deposit amount must be greater than 0");
         }
 
-        if (data.squareFootage <= 0) {
-          throw new Error("Square footage must be greater than 0");
-        }
+        const formData = new FormData();
+        formData.append('data', JSON.stringify(data));
 
-        if (data.bedrooms <= 0) {
-          throw new Error("Number of bedrooms must be greater than 0");
-        }
-
-        if (data.bathrooms <= 0) {
-          throw new Error("Number of bathrooms must be greater than 0");
-        }
-
-        let imageUrls: string[] = [];
         if (selectedImages.length > 0) {
           console.log('Uploading images...');
-          imageUrls = await uploadImages();
+          selectedImages.forEach((file, index) => {
+            formData.append(`image`, file);
+          });
         }
 
-        const propertyData = {
-          ...data,
-          images: imageUrls,
-          rentPrice: Number(data.rentPrice),
-          depositAmount: Number(data.depositAmount),
-          squareFootage: Number(data.squareFootage),
-          bedrooms: Number(data.bedrooms),
-          bathrooms: Number(data.bathrooms),
-        };
+        const response = await fetch('/api/properties', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData,
+        });
 
-        console.log('Final property data:', propertyData);
-
-        const res = await apiRequest("POST", "/api/properties", propertyData);
-        if (!res.ok) {
-          const errorData = await res.json();
+        if (!response.ok) {
+          const errorData = await response.json();
           throw new Error(errorData.error || "Failed to create property");
         }
-        return res.json();
+
+        return response.json();
       } catch (error) {
         console.error('Property creation error:', error);
-        toast({
-          title: "Error",
-          description: error instanceof Error ? error.message : "Failed to create property",
-          variant: "destructive",
-        });
         throw error;
       }
     },

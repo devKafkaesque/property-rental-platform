@@ -15,6 +15,7 @@ import fs from "fs";
 import express from "express";
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
+import { generatePropertyDescription, analyzePricing } from "./openai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,17 +54,20 @@ const upload = multer({
 
 export function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) return next();
-  res.status(401).end();
+  res.status(401).json({ error: "Authentication required" });
 }
 
 export function ensureLandowner(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated() && req.user.role === "landowner") return next();
-  res.status(403).end();
+  res.status(403).json({ error: "Access denied" });
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
   const httpServer = createServer(app);
+
+  // Serve uploaded files first
+  app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
   // Property routes
   app.get("/api/properties", async (req, res) => {
@@ -77,20 +81,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/properties", ensureLandowner, upload.single('image'), async (req, res) => {
+  app.post("/api/properties", ensureLandowner, upload.array('image', 5), async (req, res) => {
     try {
-      // Parse the request body first
-      const propertyData = JSON.parse(req.body.data);
+      let propertyData;
+      try {
+        propertyData = JSON.parse(req.body.data);
+      } catch (error) {
+        console.error('Error parsing property data:', error);
+        return res.status(400).json({ error: "Invalid property data format" });
+      }
+
+      // Add image paths if images were uploaded
+      const images = (req.files as Express.Multer.File[])?.map(file => `/uploads/${file.filename}`) || [];
+      propertyData.images = images;
 
       // Validate the data
-      const data = insertPropertySchema.parse({
+      const validatedData = insertPropertySchema.parse({
         ...propertyData,
-        images: req.file ? [`/uploads/${req.file.filename}`] : []
+        yearBuilt: null,
+        parkingSpaces: 0,
+        petsAllowed: false,
+        utilities: [],
+        amenities: [],
+        accessibility: [],
+        securityFeatures: [],
+        maintainanceHistory: []
       });
 
       // Create the property
       const property = await storage.createProperty({
-        ...data,
+        ...validatedData,
         ownerId: req.user!.id,
         status: "available",
         connectionCode: null
@@ -100,9 +120,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error creating property:', error);
       if (error instanceof Error) {
-        res.status(400).json({ 
+        res.status(400).json({
           error: "Failed to create property",
-          details: error.message 
+          details: error.message
         });
       } else {
         res.status(500).json({ error: "Internal server error" });
@@ -112,7 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/properties/:id", async (req, res) => {
     const property = await storage.getPropertyById(Number(req.params.id));
-    if (!property) return res.status(404).end();
+    if (!property) return res.status(404).json({error: "Property not found"});
     res.json(property);
   });
 
@@ -127,15 +147,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const property = await storage.getPropertyById(propertyId);
 
       if (!property) {
-        res.status(404);
-        res.json({ error: "Property not found" });
-        return;
+        return res.status(404).json({ error: "Property not found" });
       }
 
       if (property.ownerId !== req.user!.id) {
-        res.status(403);
-        res.json({ error: "Not authorized" });
-        return;
+        return res.status(403).json({ error: "Not authorized" });
       }
 
       const code = crypto.randomBytes(4).toString('hex').toUpperCase();
@@ -144,8 +160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ connectionCode: code });
     } catch (err) {
       console.error('Error:', err);
-      res.status(500);
-      res.json({ error: "Server error" });
+      res.status(500).json({ error: "Server error" });
     }
   });
 
@@ -153,8 +168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/properties/connect/:code", ensureAuthenticated, async (req, res) => {
     try {
       if (req.user!.role !== "tenant") {
-        res.status(403);
-        return res.json({ error: "Only tenants can connect to properties" });
+        return res.status(403).json({ error: "Only tenants can connect to properties" });
       }
 
       const code = req.params.code.toUpperCase();
@@ -164,13 +178,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const property = properties.find(p => p.connectionCode === code);
 
       if (!property) {
-        res.status(404);
-        return res.json({ error: "Invalid connection code" });
+        return res.status(404).json({ error: "Invalid connection code" });
       }
 
       if (property.status !== "available") {
-        res.status(400);
-        return res.json({ error: "Property is not available for connection" });
+        return res.status(400).json({ error: "Property is not available for connection" });
       }
 
       // Calculate end date (1 year from start)
@@ -201,11 +213,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error('Error connecting to property:', err);
       if (err instanceof Error) {
-        res.status(400);
-        return res.json({ error: err.message });
+        return res.status(400).json({ error: err.message });
       }
-      res.status(500);
-      return res.json({ error: "Failed to connect to property" });
+      return res.status(500).json({ error: "Failed to connect to property" });
     }
   });
 
@@ -383,9 +393,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve uploaded files
-  app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
-
   // AI routes
   app.post("/api/ai/description", async (req, res) => {
     try {
@@ -394,9 +401,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(description);
     } catch (error) {
       console.error('OpenAI API Error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to generate description",
-        details: error instanceof Error ? error.message : "Unknown error" 
+        details: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });
@@ -408,23 +415,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(pricing);
     } catch (error) {
       console.error('OpenAI API Error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to analyze pricing",
-        details: error instanceof Error ? error.message : "Unknown error" 
+        details: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });
 
   return httpServer;
-}
-
-// Placeholder functions -  replace with actual implementations
-async function generatePropertyDescription(details: any): Promise<string> {
-  //Implementation to call OpenAI API and generate description
-  return "This is a sample property description";
-}
-
-async function analyzePricing(details: any): Promise<number> {
-  //Implementation to call OpenAI API and analyze pricing
-  return 1000;
 }
