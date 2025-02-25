@@ -93,7 +93,7 @@ export default function ConnectionsDashboard() {
 
   // Modified disconnect mutation for landowners
   const disconnectTenantMutation = useMutation({
-    mutationFn: async (data: { 
+    mutationFn: async (data: {
       propertyId: number;
       contractId: number;
       reason: string;
@@ -420,7 +420,9 @@ export default function ConnectionsDashboard() {
                             <WrenchIcon className="h-4 w-4" />
                             <h3 className="font-medium">Maintenance Requests</h3>
                           </div>
-                          <MaintenanceRequestForm propertyId={property.id} />
+                          {contract.contractStatus === "active" && (
+                            <MaintenanceRequestForm propertyId={property.id} />
+                          )}
                           <div className="mt-4">
                             <div className="flex items-center space-x-2 mb-2">
                               <ClipboardList className="h-4 w-4" />
