@@ -357,12 +357,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Only tenants can connect to properties" });
       }
 
-      const properties = await storage.getProperties();
-      const property = properties.find(p => p.connectionCode === req.params.code);
+      // Try both direct ID and connection code lookup
+      let property = null;
+      const propertyId = Number(req.params.code);
+
+      if (!isNaN(propertyId)) {
+        property = await storage.getPropertyById(propertyId);
+      }
 
       if (!property) {
+        const allProperties = await storage.getProperties();
+        property = allProperties.find(p => p.connectionCode === req.params.code);
+      }
+
+      if (!property) {
+        console.log('No property found for code:', req.params.code); // Debug log
         return res.status(404).json({ error: "Invalid connection code" });
       }
+
+      console.log('Found property:', property); // Debug log
 
       if (property.status !== "available") {
         return res.status(400).json({ error: "This property is not available for connection" });
@@ -378,10 +391,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         rentAmount: property.rentPrice,
         documents: [],
         depositPaid: false,
-        contractStatus: "active" // Add contract status
+        contractStatus: "active"
       });
 
-      // Update property status to rented
+      // Update property status to rented and clear connection code
       await storage.updateProperty(property.id, {
         status: "rented",
         connectionCode: null, // Clear the code after successful connection
