@@ -63,7 +63,16 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
         if (message.type === 'history' && Array.isArray(message.messages)) {
           setMessages(message.messages);
         } else if (message.propertyId === propertyId) {
-          setMessages(prev => [...prev, message]);
+          // Check for duplicate messages based on content and timestamp
+          setMessages(prev => {
+            const isDuplicate = prev.some(m => 
+              m.type === message.type && 
+              m.userId === message.userId && 
+              m.content === message.content && 
+              m.timestamp === message.timestamp
+            );
+            return isDuplicate ? prev : [...prev, message];
+          });
         }
       } catch (error) {
         console.error('Error handling message:', error);
@@ -77,6 +86,13 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
     };
   }, [propertyId]);
 
+  // Filter out system messages for cleaner display
+  const displayMessages = messages.filter(msg => 
+    msg.type === 'message' || 
+    (msg.type === 'join' && msg.userId !== user?.id) || 
+    (msg.type === 'leave' && msg.userId !== user?.id)
+  );
+
   return (
     <div className="flex flex-col h-[600px] border rounded-lg">
       <div className="p-4 border-b bg-muted">
@@ -85,9 +101,9 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
 
       <ScrollArea className="flex-grow p-4">
         <div className="space-y-4">
-          {messages.map((message, index) => (
+          {displayMessages.map((message, index) => (
             <div
-              key={index}
+              key={`${message.userId}-${message.timestamp}-${index}`}
               className={`flex items-start gap-2 ${
                 message.userId === user?.id ? 'flex-row-reverse' : ''
               }`}

@@ -3,12 +3,13 @@ import { useAuth } from './use-auth';
 import { useToast } from './use-toast';
 
 interface ChatMessage {
-  type: 'message' | 'join' | 'leave';
+  type: 'message' | 'join' | 'leave' | 'history';
   userId: number;
   username: string;
   content: string;
   propertyId: number;
   timestamp: number;
+  messages?: ChatMessage[]; // For history type
 }
 
 export function useWebSocket(propertyId: number) {
@@ -17,6 +18,7 @@ export function useWebSocket(propertyId: number) {
   const { toast } = useToast();
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
 
   const connect = useCallback(() => {
     if (!user || !propertyId) return;
@@ -87,11 +89,18 @@ export function useWebSocket(propertyId: number) {
       if (reconnectAttempts.current < maxReconnectAttempts) {
         reconnectAttempts.current += 1;
         console.log(`Reconnecting attempt ${reconnectAttempts.current}/${maxReconnectAttempts}...`);
-        setTimeout(() => {
+
+        // Clear any existing reconnection timeout
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
+
+        // Set new reconnection timeout
+        reconnectTimeoutRef.current = setTimeout(() => {
           if (wsRef.current === null) { // Only reconnect if still disconnected
             connect();
           }
-        }, 5000); // Reconnect after 5s
+        }, 5000 * Math.min(reconnectAttempts.current, 3)); // Exponential backoff up to 15s
       } else {
         console.log('Max reconnect attempts reached. Giving up.');
         toast({
@@ -105,6 +114,11 @@ export function useWebSocket(propertyId: number) {
     wsRef.current = ws;
 
     return () => {
+      // Clear any pending reconnection attempt
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(
           JSON.stringify({

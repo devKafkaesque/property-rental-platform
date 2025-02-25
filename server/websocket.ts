@@ -16,7 +16,8 @@ interface ChatMessageData {
   username: string;
   content: string;
   propertyId: number;
-  timestamp: number;
+  timestamp: number | string;
+  messages?: ChatMessage[]; // For history type
 }
 
 class ChatServer {
@@ -94,6 +95,18 @@ class ChatServer {
 
   private async handleJoin(ws: WebSocket, message: ChatMessageData & { role: 'tenant' | 'landowner' }) {
     try {
+      // Check if client is already connected
+      const existingClient = this.clients.get(message.userId);
+      if (existingClient) {
+        if (existingClient.ws.readyState === WebSocket.OPEN) {
+          // Don't create duplicate connection if one exists
+          return;
+        } else {
+          // Clean up old connection
+          this.clients.delete(message.userId);
+        }
+      }
+
       const client: ChatClient = {
         ws,
         userId: message.userId,
@@ -108,17 +121,7 @@ class ChatServer {
       }
       this.propertyGroups.get(message.propertyId)!.add(message.userId);
 
-      // Save join message to MongoDB
-      await new ChatMessage({
-        type: 'join',
-        userId: message.userId,
-        username: message.username,
-        content: `${message.username} (${message.role}) joined the chat`,
-        propertyId: message.propertyId,
-        timestamp: new Date()
-      }).save();
-
-      // Load and send previous messages
+      // Load and send previous messages first
       const previousMessages = await ChatMessage.find({ propertyId: message.propertyId })
         .sort({ timestamp: -1 })
         .limit(50)
@@ -130,6 +133,16 @@ class ChatServer {
           messages: previousMessages.reverse()
         }));
       }
+
+      // Save join message to MongoDB
+      await new ChatMessage({
+        type: 'join',
+        userId: message.userId,
+        username: message.username,
+        content: `${message.username} (${message.role}) joined the chat`,
+        propertyId: message.propertyId,
+        timestamp: new Date()
+      }).save();
 
       // Notify others about the new member
       this.broadcastToPropertyGroup({
@@ -170,6 +183,7 @@ class ChatServer {
     try {
       if (this.propertyGroups.has(message.propertyId)) {
         this.propertyGroups.get(message.propertyId)!.delete(message.userId);
+        this.clients.delete(message.userId);
 
         // Save leave message to MongoDB
         await new ChatMessage({
@@ -182,7 +196,14 @@ class ChatServer {
         }).save();
 
         // Notify group about member leaving
-        this.broadcastToPropertyGroup(message);
+        this.broadcastToPropertyGroup({
+          type: 'leave',
+          userId: message.userId,
+          username: message.username,
+          content: `${message.username} left the chat`,
+          propertyId: message.propertyId,
+          timestamp: Date.now()
+        });
       }
     } catch (error) {
       log('Error in handleLeave:', error instanceof Error ? error.message : 'Unknown error');
@@ -205,16 +226,7 @@ class ChatServer {
       for (const [propertyId, members] of this.propertyGroups.entries()) {
         if (members.has(disconnectedClient.userId)) {
           members.delete(disconnectedClient.userId);
-
-          // Don't save disconnect messages to avoid cluttering the history
-          this.broadcastToPropertyGroup({
-            type: 'leave',
-            userId: disconnectedClient.userId,
-            username: disconnectedClient.username,
-            content: `${disconnectedClient.username} disconnected`,
-            propertyId,
-            timestamp: Date.now()
-          });
+          // Don't send disconnect messages as reconnection will handle this
         }
       }
     }
