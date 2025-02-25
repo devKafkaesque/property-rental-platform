@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, Home, Hotel, Castle, Loader2, ArrowLeft, Edit2, X, Upload, BedDouble, Bath, Ruler, DollarSign, MapPin, Wifi, CheckCircle2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,8 +18,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
 import PropertyImageCarousel from "@/components/property-image-carousel";
 import ViewingRequestManagement from "@/components/viewing-request-management";
-import ReviewList from "@/components/review-list"; // Import ReviewList component
-
+import ReviewList from "@/components/review-list";
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
   if (category === "luxury") return Castle;
@@ -43,17 +42,29 @@ export default function ManagePropertyPage() {
   const form = useForm({
     resolver: zodResolver(insertPropertySchema),
     defaultValues: {
-      name: property?.name || "",
-      description: property?.description || "",
-      address: property?.address || "",
-      type: property?.type || "house",
-      furnished: property?.furnished || "full",
-      wifi: property?.wifi || false,
-      restrictions: property?.restrictions || {},
-      condition: property?.condition || "",
-      category: property?.category || "standard",
-      images: property?.images || [], //Added to handle default images
+      name: "",
+      description: "",
+      address: "",
+      type: "house",
+      furnished: "full",
+      wifi: false,
+      restrictions: {},
+      condition: "",
+      category: "standard",
+      images: [],
     },
+    values: property ? {
+      name: property.name,
+      description: property.description,
+      address: property.address,
+      type: property.type,
+      furnished: property.furnished,
+      wifi: property.wifi,
+      restrictions: property.restrictions,
+      condition: property.condition,
+      category: property.category,
+      images: property.images || [],
+    } : undefined
   });
 
   const updatePropertyMutation = useMutation({
@@ -209,7 +220,6 @@ export default function ManagePropertyPage() {
               </CardContent>
             </Card>
 
-            {/* Add Viewing Requests Card */}
             <Card>
               <CardHeader>
                 <CardTitle>Viewing Requests</CardTitle>
@@ -219,7 +229,6 @@ export default function ManagePropertyPage() {
               </CardContent>
             </Card>
 
-            {/* Add Reviews Card */}
             <Card>
               <CardHeader>
                 <CardTitle>Property Reviews</CardTitle>
@@ -229,7 +238,6 @@ export default function ManagePropertyPage() {
               </CardContent>
             </Card>
 
-            {/* Edit Property Dialog */}
             <Dialog open={isEditing} onOpenChange={setIsEditing}>
               <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
@@ -247,7 +255,7 @@ export default function ManagePropertyPage() {
                         <FormItem>
                           <FormLabel>Property Name</FormLabel>
                           <FormControl>
-                            <Input defaultValue={property.name} {...field} />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -262,7 +270,6 @@ export default function ManagePropertyPage() {
                           <FormLabel>Description</FormLabel>
                           <FormControl>
                             <Textarea
-                              defaultValue={property.description}
                               className="min-h-[100px]"
                               {...field}
                             />
@@ -279,7 +286,7 @@ export default function ManagePropertyPage() {
                         <FormItem>
                           <FormLabel>Address</FormLabel>
                           <FormControl>
-                            <Input defaultValue={property.address} {...field} />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -293,7 +300,7 @@ export default function ManagePropertyPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Property Type</FormLabel>
-                            <Select defaultValue={property.type} onValueChange={field.onChange}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue />
@@ -317,7 +324,7 @@ export default function ManagePropertyPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Furnished Status</FormLabel>
-                            <Select defaultValue={property.furnished} onValueChange={field.onChange}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue />
@@ -347,7 +354,6 @@ export default function ManagePropertyPage() {
                             <Switch
                               checked={field.value}
                               onCheckedChange={field.onChange}
-                              defaultChecked={property.wifi}
                             />
                           </FormControl>
                         </FormItem>
@@ -361,7 +367,7 @@ export default function ManagePropertyPage() {
                         <FormItem>
                           <FormLabel>Property Condition</FormLabel>
                           <FormControl>
-                            <Input defaultValue={property.condition} {...field} />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -374,7 +380,7 @@ export default function ManagePropertyPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Category</FormLabel>
-                          <Select defaultValue={property.category} onValueChange={field.onChange}>
+                          <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
                               <SelectTrigger>
                                 <SelectValue />
@@ -391,11 +397,9 @@ export default function ManagePropertyPage() {
                       )}
                     />
 
-                    {/* Add Image Upload Section */}
                     <div className="space-y-4">
                       <FormLabel>Property Images</FormLabel>
-
-                      {/* Display Existing Images */}
+                      
                       {property.images && property.images.length > 0 && (
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                           {property.images.map((imageUrl, index) => (
@@ -422,8 +426,6 @@ export default function ManagePropertyPage() {
                           ))}
                         </div>
                       )}
-
-                      {/* Upload New Images */}
                       <div className="flex items-center justify-center w-full">
                         <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50">
                           <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -445,7 +447,7 @@ export default function ManagePropertyPage() {
 
                               const formData = new FormData();
                               Array.from(e.target.files).forEach(file => {
-                                formData.append('images', file); // Changed from image${index} to images
+                                formData.append('images', file);
                               });
 
                               try {
