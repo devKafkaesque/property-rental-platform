@@ -4,35 +4,20 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import MaintenanceRequestForm from "@/components/maintenance-request-form";
 import MaintenanceRequestList from "@/components/maintenance-request-list";
 import {
-  Building2,
-  Home,
-  Hotel,
-  Castle,
-  Loader2,
-  Key,
-  RefreshCw,
-  Users,
-  LinkIcon,
-  CheckCircle2,
-  XCircle,
-  ArrowLeft,
-  WrenchIcon,
-  ClipboardList,
-  ChevronDown,
-  ChevronUp,
-  Wallet,
-  Star,
-  AlertCircle,
-  CheckCircle,
+  Building2, Home, Hotel, Castle, Loader2, Key, RefreshCw,
+  Users, LinkIcon, CheckCircle2, XCircle, ArrowLeft, WrenchIcon,
+  ClipboardList, ChevronDown, ChevronUp, Wallet, Star,
+  AlertCircle, CheckCircle, UserX
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { useState } from "react";
-import { Textarea } from "@/components/ui/textarea";
-
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
   if (category === "luxury") return Castle;
@@ -46,7 +31,16 @@ export default function ConnectionsDashboard() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [expandedProperties, setExpandedProperties] = useState<number[]>([]);
-  const [notes, setNotes] = useState({}); //Added state for tenant notes
+  const [disconnectDialog, setDisconnectDialog] = useState<{
+    isOpen: boolean;
+    propertyId?: number;
+    contractId?: number;
+    tenantId?: number;
+  }>({ isOpen: false });
+  const [disconnectReason, setDisconnectReason] = useState("");
+  const [disconnectType, setDisconnectType] = useState<
+    "contract_ended" | "tenant_request" | "violation" | "other"
+  >("contract_ended");
 
   // For landowners: fetch their properties
   const { data: properties, isLoading: propertiesLoading } = useQuery<Property[]>({
@@ -130,6 +124,53 @@ export default function ConnectionsDashboard() {
     },
   });
 
+  // Modified disconnect mutation for landowners
+  const disconnectTenantMutation = useMutation({
+    mutationFn: async (data: { 
+      propertyId: number;
+      contractId: number;
+      reason: string;
+      type: string;
+    }) => {
+      await apiRequest("POST", `/api/properties/${data.propertyId}/disconnect-tenant`, {
+        contractId: data.contractId,
+        reason: data.reason,
+        type: data.type
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tenant-contracts/landowner"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
+      toast({
+        title: "Success",
+        description: "Tenant has been disconnected from the property.",
+      });
+      setDisconnectDialog({ isOpen: false });
+      setDisconnectReason("");
+      setDisconnectType("contract_ended");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to disconnect tenant",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Tenant self-disconnect mutation
+  const disconnectSelfMutation = useMutation({
+    mutationFn: async (propertyId: number) => {
+      await apiRequest("POST", `/api/properties/${propertyId}/disconnect`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tenant-contracts/tenant"] });
+      toast({
+        title: "Success",
+        description: "Successfully disconnected from property.",
+      });
+    },
+  });
 
   if (propertiesLoading || contractsLoading || myContractsLoading) {
     return (
@@ -162,7 +203,6 @@ export default function ConnectionsDashboard() {
                   (contract) => contract.propertyId === property.id
                 );
                 const isExpanded = expandedProperties.includes(property.id);
-                const pendingRequests = getPendingRequestsCount(property.id);
 
                 return (
                   <Card key={property.id} className="overflow-hidden">
@@ -185,9 +225,9 @@ export default function ConnectionsDashboard() {
                             `}>
                               {property.status}
                             </span>
-                            {pendingRequests > 0 && (
+                            {getPendingRequestsCount(property.id) > 0 && (
                               <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-                                {pendingRequests}
+                                {getPendingRequestsCount(property.id)}
                               </span>
                             )}
                           </div>
@@ -232,12 +272,30 @@ export default function ConnectionsDashboard() {
                                   Connected since {new Date(contract.startDate).toLocaleDateString()}
                                 </p>
                               </div>
-                              <span className={`
-                                px-2 py-1 rounded-full text-sm
-                                ${contract.contractStatus === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
-                              `}>
-                                {contract.contractStatus}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className={`
+                                  px-2 py-1 rounded-full text-sm
+                                  ${contract.contractStatus === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
+                                `}>
+                                  {contract.contractStatus}
+                                </span>
+                                {contract.contractStatus === "active" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex items-center gap-2"
+                                    onClick={() => setDisconnectDialog({
+                                      isOpen: true,
+                                      propertyId: property.id,
+                                      contractId: contract.id,
+                                      tenantId: contract.tenantId
+                                    })}
+                                  >
+                                    <UserX className="h-4 w-4" />
+                                    Disconnect Tenant
+                                  </Button>
+                                )}
+                              </div>
                             </div>
 
                             {/* Maintenance History Section */}
@@ -297,8 +355,7 @@ export default function ConnectionsDashboard() {
 
                 const PropertyIcon = getPropertyIcon(property.type, property.category);
                 const isActiveConnection = contract.contractStatus === "active";
-                const isLandowner = user?.role === "landowner"; //Added for conditional rendering
-
+                const isLandowner = user?.role === "landowner";
 
                 return (
                   <Card key={contract.id} className="flex flex-col">
@@ -401,6 +458,20 @@ export default function ConnectionsDashboard() {
                           </div>
                         )}
 
+                        {contract.contractStatus === "active" && (
+                          <Button
+                            variant="outline"
+                            className="w-full mt-4 flex items-center justify-center gap-2"
+                            onClick={() => {
+                              if (window.confirm("Are you sure you want to disconnect from this property? This action cannot be undone.")) {
+                                disconnectSelfMutation.mutate(property.id);
+                              }
+                            }}
+                          >
+                            <UserX className="h-4 w-4" />
+                            Disconnect from Property
+                          </Button>
+                        )}
                         <Button
                           className="w-full mt-4"
                           variant="outline"
@@ -416,6 +487,69 @@ export default function ConnectionsDashboard() {
             </div>
           </div>
         )}
+
+        {/* Disconnect Dialog for Landowners */}
+        <Dialog open={disconnectDialog.isOpen} onOpenChange={(open) => setDisconnectDialog({ isOpen: open })}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Disconnect Tenant</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Reason for Disconnection</label>
+                <Select
+                  value={disconnectType}
+                  onValueChange={(value: any) => setDisconnectType(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select reason" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="contract_ended">Contract Ended</SelectItem>
+                    <SelectItem value="tenant_request">Tenant Request</SelectItem>
+                    <SelectItem value="violation">Contract Violation</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Additional Details</label>
+                <Textarea
+                  value={disconnectReason}
+                  onChange={(e) => setDisconnectReason(e.target.value)}
+                  placeholder="Please provide additional details about the disconnection..."
+                  className="min-h-[100px]"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setDisconnectDialog({ isOpen: false })}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (disconnectDialog.propertyId && disconnectDialog.contractId) {
+                      disconnectTenantMutation.mutate({
+                        propertyId: disconnectDialog.propertyId,
+                        contractId: disconnectDialog.contractId,
+                        reason: disconnectReason,
+                        type: disconnectType,
+                      });
+                    }
+                  }}
+                  disabled={!disconnectReason.trim() || disconnectTenantMutation.isPending}
+                >
+                  {disconnectTenantMutation.isPending ? "Disconnecting..." : "Confirm Disconnection"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

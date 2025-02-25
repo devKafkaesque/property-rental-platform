@@ -605,6 +605,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/properties/:id/disconnect-tenant", ensureLandowner, async (req, res) => {
+    try {
+      const propertyId = Number(req.params.id);
+      const { contractId, reason, type } = req.body;
+
+      // Get the contract
+      const contract = await storage.getTenantContractById(contractId);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      // Get the property
+      const property = await storage.getPropertyById(propertyId);
+      if (!property) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      // Verify ownership
+      if (property.ownerId !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized to manage this property" });
+      }
+
+      // Update contract status
+      await storage.updateTenantContract(contractId, {
+        contractStatus: "terminated",
+        terminationReason: reason,
+        terminationType: type,
+        terminatedAt: new Date()
+      });
+
+      // Check if this was the last active tenant
+      const activeContracts = await storage.getTenantContractsByProperty(propertyId);
+      const hasActiveContracts = activeContracts.some(c => 
+        c.id !== contractId && c.contractStatus === "active"
+      );
+
+      // If no more active contracts, set property as available
+      if (!hasActiveContracts) {
+        await storage.updateProperty(propertyId, {
+          status: "available" as const
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error disconnecting tenant:', error);
+      res.status(500).json({ error: "Failed to disconnect tenant" });
+    }
+  });
+
   app.delete("/api/users/:id", ensureAuthenticated, async (req, res) => {
     try {
       const userId = Number(req.params.id);
