@@ -22,7 +22,7 @@ class ChatServer {
   private groups: Map<string, Set<number>> = new Map();
 
   constructor(server: Server) {
-    const wss = new WebSocketServer({ server, path: '/ws' });
+    const wss = new WebSocketServer({ server, path: '/ws/chat' }); // Changed path to avoid conflict with Vite
 
     wss.on('connection', (ws: WebSocket) => {
       log('New WebSocket connection');
@@ -86,7 +86,7 @@ class ChatServer {
   private handleLeave(message: ChatMessage) {
     if (message.groupId && this.groups.has(message.groupId)) {
       this.groups.get(message.groupId)!.delete(message.userId);
-      
+
       // Notify group about member leaving
       this.broadcastToGroup({
         type: 'leave',
@@ -101,8 +101,8 @@ class ChatServer {
 
   private handleDisconnect(ws: WebSocket) {
     let disconnectedClient: ChatClient | undefined;
-    
-    for (const [userId, client] of this.clients.entries()) {
+
+    for (const [userId, client] of this.clients) {
       if (client.ws === ws) {
         disconnectedClient = client;
         this.clients.delete(userId);
@@ -112,7 +112,7 @@ class ChatServer {
 
     if (disconnectedClient) {
       // Remove user from all groups
-      for (const [groupId, members] of this.groups.entries()) {
+      for (const [groupId, members] of this.groups) {
         if (members.has(disconnectedClient.userId)) {
           members.delete(disconnectedClient.userId);
           this.broadcastToGroup({
