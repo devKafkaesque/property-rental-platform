@@ -42,8 +42,8 @@ export default function PropertyListing() {
   // Show all properties, with available ones first
   const sortedProperties = [...properties].sort((a, b) => {
     // Sort available properties first
-    if (a.status === "available" && b.status !== "available") return -1;
-    if (a.status !== "available" && b.status === "available") return 1;
+    if ((a.status || "available") === "available" && (b.status || "available") !== "available") return -1;
+    if ((a.status || "available") !== "available" && (b.status || "available") === "available") return 1;
     return 0;
   });
 
@@ -59,7 +59,7 @@ export default function PropertyListing() {
                   alt={property.name}
                   className="w-full h-full object-cover"
                 />
-                {property.status !== "available" && (
+                {property.status && property.status !== "available" && (
                   <div className="absolute top-2 right-2 bg-black/70 text-white px-3 py-1 rounded-full text-sm">
                     {property.status.charAt(0).toUpperCase() + property.status.slice(1)}
                   </div>
@@ -105,7 +105,7 @@ export default function PropertyListing() {
                 <Button 
                   className="w-full mt-4"
                   onClick={() => setLocation(`/properties/${property.id}`)}
-                  variant={property.status === "available" ? "default" : "secondary"}
+                  variant={(property.status || "available") === "available" ? "default" : "secondary"}
                 >
                   View Details
                 </Button>
