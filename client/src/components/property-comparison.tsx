@@ -36,7 +36,7 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
     queryKey: ["/api/properties"],
   });
 
-  const { data: comparison, isLoading, error } = useQuery({
+  const { data: comparison, isLoading } = useQuery({
     queryKey: ["/api/properties/compare", propertyIds],
     enabled: !!propertyIds.length && !!properties,
     queryFn: async () => {
@@ -63,73 +63,69 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
   const dialogDescriptionId = "property-comparison-description";
 
   return (
-    <Dialog open={open} modal>
-      <DialogContent 
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        aria-labelledby={dialogTitleId}
-        aria-describedby={dialogDescriptionId}
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent
+        className="sm:max-w-[90vw] lg:max-w-[80vw] xl:max-w-6xl h-[90vh] overflow-y-auto"
       >
-        <div className="bg-background rounded-lg shadow-lg w-full max-w-6xl max-h-[90vh] overflow-y-auto p-6">
-          <DialogHeader>
-            <DialogTitle id={dialogTitleId}>Property Comparison</DialogTitle>
-            <DialogDescription id={dialogDescriptionId}>
-              {isLoading ? "Loading property comparison..." : "Compare selected properties to make an informed decision"}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Property Comparison</DialogTitle>
+          <DialogDescription>
+            Compare selected properties to make an informed decision
+          </DialogDescription>
+        </DialogHeader>
 
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center p-8 space-y-4">
-              <Loader2 className="h-8 w-8 animate-spin" />
-              <p className="text-sm text-muted-foreground">Analyzing properties...</p>
-            </div>
-          ) : error || comparisonError ? (
-            <div className="text-red-500 p-4 rounded bg-red-50 mb-4">
-              {comparisonError || "Failed to load comparison data. Please try again."}
-            </div>
-          ) : !comparison?.properties ? (
-            <div className="text-amber-500 p-4 rounded bg-amber-50 mb-4">
-              No comparison data available
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {selectedProperties.map(property => {
-                  const PropertyIcon = getPropertyIcon(property.type, property.category);
-                  const propertyAnalysis = comparison.properties[property.id];
-                  console.log("Rendering analysis for property", property.id, propertyAnalysis);
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center p-8 space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <p className="text-sm text-muted-foreground">Analyzing properties...</p>
+          </div>
+        ) : comparisonError ? (
+          <div className="text-red-500 p-4 rounded bg-red-50 mb-4">
+            {comparisonError}
+          </div>
+        ) : !comparison?.properties ? (
+          <div className="text-amber-500 p-4 rounded bg-amber-50 mb-4">
+            No comparison data available
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {selectedProperties.map(property => {
+                const PropertyIcon = getPropertyIcon(property.type, property.category);
+                const propertyAnalysis = comparison.properties[property.id];
+                console.log("Rendering analysis for property", property.id, propertyAnalysis);
 
-                  return (
-                    <Card key={property.id} className="relative">
-                      <CardHeader>
-                        <div className="flex items-center space-x-2">
-                          <PropertyIcon className="h-5 w-5" />
-                          <CardTitle>{property.name}</CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {/* Basic Property Info */}
-                        <div className="space-y-2">
-                          <p className="text-sm text-muted-foreground">{property.address}</p>
-                          <div className="grid grid-cols-3 gap-2 text-sm">
-                            <div>
-                              <p className="font-medium">Bedrooms</p>
-                              <p>{property.bedrooms}</p>
-                            </div>
-                            <div>
-                              <p className="font-medium">Bathrooms</p>
-                              <p>{property.bathrooms}</p>
-                            </div>
-                            <div>
-                              <p className="font-medium">Sq. Ft.</p>
-                              <p>{property.squareFootage}</p>
-                            </div>
+                return (
+                  <Card key={property.id} className="relative">
+                    <CardHeader>
+                      <div className="flex items-center space-x-2">
+                        <PropertyIcon className="h-5 w-5" />
+                        <CardTitle>{property.name}</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      {/* Basic Property Info */}
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">{property.address}</p>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <p className="font-medium">Bedrooms</p>
+                            <p>{property.bedrooms}</p>
                           </div>
-                          <p className="font-medium text-lg">${property.rentPrice}/month</p>
+                          <div>
+                            <p className="font-medium">Bathrooms</p>
+                            <p>{property.bathrooms}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium">Sq. Ft.</p>
+                            <p>{property.squareFootage}</p>
+                          </div>
                         </div>
+                        <p className="font-medium text-lg">${property.rentPrice}/month</p>
 
                         {/* AI Analysis */}
                         {propertyAnalysis ? (
-                          <div className="space-y-4">
+                          <div className="space-y-4 mt-4">
                             {/* Pros */}
                             <div className="space-y-2">
                               <h4 className="font-medium flex items-center gap-2">
@@ -165,24 +161,24 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
                             </div>
                           </div>
                         ) : (
-                          <div className="text-muted-foreground text-sm p-4 bg-gray-50 rounded">
+                          <div className="text-muted-foreground text-sm p-4 bg-gray-50 rounded mt-4">
                             No analysis available for this property
                           </div>
                         )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
-          )}
+          </div>
+        )}
 
-          <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-          </DialogFooter>
-        </div>
+        <DialogFooter className="mt-6">
+          <Button variant="outline" onClick={onClose}>
+            Close Comparison
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
