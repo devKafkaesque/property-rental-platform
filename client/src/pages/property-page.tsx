@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Building2, Home, Hotel, Castle, Loader2, X, Wifi, CheckCircle2, Info, MapPin, BedDouble, Bath, Ruler, DollarSign } from "lucide-react";
+import { Building2, Home, Hotel, Castle, Loader2, ArrowLeft, Wifi, CheckCircle2, Info, MapPin, BedDouble, Bath, Ruler, DollarSign } from "lucide-react";
 import { useState } from "react";
 import { DateRange } from "react-day-picker";
 import PropertyImageCarousel from "@/components/property-image-carousel";
@@ -81,16 +81,15 @@ export default function PropertyPage() {
 
   return (
     <div className="min-h-screen bg-background p-6">
-      <Button
-        variant="ghost"
-        className="mb-6"
-        onClick={handleBack}
-      >
-        <X className="h-4 w-4 mr-2" />
-        Close
-      </Button>
-
       <div className="container mx-auto max-w-5xl">
+        {/* Header with back button */}
+        <div className="flex items-center justify-between mb-6">
+          <Button variant="ghost" onClick={handleBack}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to {user ? "Dashboard" : "Home"}
+          </Button>
+        </div>
+
         <div className="grid md:grid-cols-2 gap-8">
           <PropertyImageCarousel
             images={property.images || []}

@@ -15,9 +15,11 @@ import {
   Users,
   LinkIcon,
   CheckCircle2,
-  XCircle
+  XCircle,
+  ArrowLeft
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
   if (category === "luxury") return Castle;
@@ -29,6 +31,7 @@ function getPropertyIcon(type: Property["type"], category: Property["category"])
 export default function ConnectionsDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   // For landowners: fetch their properties
   const { data: properties, isLoading: propertiesLoading } = useQuery<Property[]>({
@@ -72,143 +75,161 @@ export default function ConnectionsDashboard() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Property Connections</h1>
+    <div className="min-h-screen bg-background p-6">
+      <div className="container mx-auto">
+        {/* Header with back button */}
+        <div className="flex items-center justify-between mb-6">
+          <Button variant="ghost" onClick={() => setLocation("/dashboard")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </Button>
+        </div>
 
-      {user?.role === "landowner" && (
-        <div className="space-y-6">
-          <h2 className="text-2xl font-semibold">Your Properties</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {properties?.map((property) => {
-              const PropertyIcon = getPropertyIcon(property.type, property.category);
-              const connectedTenants = tenantContracts?.filter(
-                (contract) => contract.propertyId === property.id
-              );
+        <h1 className="text-3xl font-bold mb-6">Property Connections</h1>
 
-              return (
-                <Card key={property.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <PropertyIcon className="h-5 w-5" />
-                        <CardTitle className="text-lg">{property.name}</CardTitle>
-                      </div>
-                      <span className={`
-                        px-2 py-1 rounded-full text-sm
-                        ${property.status === "available" ? "bg-green-100 text-green-800" : 
-                          property.status === "rented" ? "bg-blue-100 text-blue-800" : 
-                          "bg-gray-100 text-gray-800"}
-                      `}>
-                        {property.status}
-                      </span>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {property.status === "available" && (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <Key className="h-4 w-4" />
-                            <span>{property.connectionCode || "No active code"}</span>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => generateCodeMutation.mutate(property.id)}
-                            disabled={generateCodeMutation.isPending}
-                          >
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Generate Code
-                          </Button>
+        {user?.role === "landowner" && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-semibold">Your Properties</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {properties?.map((property) => {
+                const PropertyIcon = getPropertyIcon(property.type, property.category);
+                const connectedTenants = tenantContracts?.filter(
+                  (contract) => contract.propertyId === property.id
+                );
+
+                return (
+                  <Card key={property.id}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <PropertyIcon className="h-5 w-5" />
+                          <CardTitle className="text-lg">{property.name}</CardTitle>
                         </div>
-                      )}
-
-                      <div className="flex items-center space-x-2">
-                        <Users className="h-4 w-4" />
-                        <span>
-                          {connectedTenants?.length || 0} Connected Tenant{connectedTenants?.length !== 1 ? 's' : ''}
+                        <span className={`
+                          px-2 py-1 rounded-full text-sm
+                          ${property.status === "available" ? "bg-green-100 text-green-800" : 
+                            property.status === "rented" ? "bg-blue-100 text-blue-800" : 
+                            "bg-gray-100 text-gray-800"}
+                        `}>
+                          {property.status}
                         </span>
                       </div>
-
-                      {connectedTenants?.map((contract) => (
-                        <div key={contract.id} className="flex items-center justify-between border-t pt-2">
-                          <div>
-                            <p className="font-medium">Tenant #{contract.tenantId}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Since {new Date(contract.startDate).toLocaleDateString()}
-                            </p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {property.status === "available" && (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <Key className="h-4 w-4" />
+                              <span>{property.connectionCode || "No active code"}</span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => generateCodeMutation.mutate(property.id)}
+                              disabled={generateCodeMutation.isPending}
+                            >
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Generate Code
+                            </Button>
                           </div>
-                          <span className={`
-                            px-2 py-1 rounded-full text-sm
-                            ${contract.contractStatus === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
-                          `}>
-                            {contract.contractStatus}
+                        )}
+
+                        <div className="flex items-center space-x-2">
+                          <Users className="h-4 w-4" />
+                          <span>
+                            {connectedTenants?.length || 0} Connected Tenant{connectedTenants?.length !== 1 ? 's' : ''}
                           </span>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+
+                        {connectedTenants?.map((contract) => (
+                          <div key={contract.id} className="flex items-center justify-between border-t pt-2">
+                            <div>
+                              <p className="font-medium">Tenant #{contract.tenantId}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Since {new Date(contract.startDate).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <span className={`
+                              px-2 py-1 rounded-full text-sm
+                              ${contract.contractStatus === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
+                            `}>
+                              {contract.contractStatus}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {user?.role === "tenant" && (
-        <div className="space-y-6">
-          <h2 className="text-2xl font-semibold">Your Connected Properties</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {myContracts?.map((contract) => {
-              const property = properties?.find(p => p.id === contract.propertyId);
-              if (!property) return null;
+        {user?.role === "tenant" && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-semibold">Your Connected Properties</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {myContracts?.map((contract) => {
+                const property = properties?.find(p => p.id === contract.propertyId);
+                if (!property) return null;
 
-              const PropertyIcon = getPropertyIcon(property.type, property.category);
+                const PropertyIcon = getPropertyIcon(property.type, property.category);
 
-              return (
-                <Card key={contract.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <PropertyIcon className="h-5 w-5" />
-                        <CardTitle className="text-lg">{property.name}</CardTitle>
+                return (
+                  <Card key={contract.id}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <PropertyIcon className="h-5 w-5" />
+                          <CardTitle className="text-lg">{property.name}</CardTitle>
+                        </div>
+                        <span className={`
+                          px-2 py-1 rounded-full text-sm
+                          ${contract.contractStatus === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
+                        `}>
+                          {contract.contractStatus}
+                        </span>
                       </div>
-                      <span className={`
-                        px-2 py-1 rounded-full text-sm
-                        ${contract.contractStatus === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
-                      `}>
-                        {contract.contractStatus}
-                      </span>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">{property.address}</p>
-                      <div className="flex items-center space-x-2">
-                        <LinkIcon className="h-4 w-4" />
-                        <span>Connected since {new Date(contract.startDate).toLocaleDateString()}</span>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">{property.address}</p>
+                        <div className="flex items-center space-x-2">
+                          <LinkIcon className="h-4 w-4" />
+                          <span>Connected since {new Date(contract.startDate).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {contract.depositPaid ? (
+                            <>
+                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              <span>Deposit paid</span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="h-4 w-4 text-red-500" />
+                              <span>Deposit pending</span>
+                            </>
+                          )}
+                        </div>
+
+                        <Button 
+                          className="w-full mt-4" 
+                          variant="outline"
+                          onClick={() => setLocation(`/property/${property.id}`)}
+                        >
+                          View Property Details
+                        </Button>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        {contract.depositPaid ? (
-                          <>
-                            <CheckCircle2 className="h-4 w-4 text-green-500" />
-                            <span>Deposit paid</span>
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="h-4 w-4 text-red-500" />
-                            <span>Deposit pending</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
