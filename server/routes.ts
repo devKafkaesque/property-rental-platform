@@ -849,19 +849,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
+      const ownerId = req.user!.id;
+      console.log('Fetching chat properties for owner:', ownerId);
+
       // Get all properties owned by the landowner
-      const properties = await storage.getPropertiesByOwner(req.user!.id);
+      const properties = await storage.getPropertiesByOwner(ownerId);
       console.log('Found landowner properties:', properties);
+
+      if (!properties || properties.length === 0) {
+        console.log('No properties found for landowner:', ownerId);
+        return res.json([]);
+      }
 
       // Get active tenant contracts for these properties
       const chatProperties = await Promise.all(
         properties.map(async (property) => {
+          if (!property) return null;
+
           const contracts = await storage.getTenantContractsByProperty(property.id);
+          console.log(`Contracts for property ${property.id}:`, contracts);
+
           const activeContract = contracts.find(c => c.contractStatus === "active");
+          console.log(`Active contract for property ${property.id}:`, activeContract);
 
           if (activeContract) {
             const tenant = await storage.getUser(activeContract.tenantId);
-            console.log('Found active contract for property:', {
+            console.log('Found active contract with tenant:', {
               propertyId: property.id,
               propertyName: property.name,
               tenantId: activeContract.tenantId,
@@ -880,8 +893,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Filter out null values and return active properties
       const activeProperties = chatProperties.filter((prop): prop is NonNullable<typeof prop> => prop !== null);
+      console.log('Final chat properties:', activeProperties);
 
-      console.log('Sending chat properties:', activeProperties);
       res.json(activeProperties);
     } catch (error) {
       console.error('Error fetching landowner chat properties:', error);
