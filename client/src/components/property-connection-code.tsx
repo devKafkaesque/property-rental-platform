@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -17,65 +17,6 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
   const [currentCode, setCurrentCode] = useState(initialConnectionCode);
   const queryClient = useQueryClient();
   const { user } = useAuth();
-
-  useEffect(() => {
-    let ws: WebSocket | null = null;
-    let reconnectTimeout: NodeJS.Timeout;
-
-    const connectWebSocket = () => {
-      try {
-        // Use the specific WebSocket path
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const host = window.location.host;
-        const wsUrl = `${protocol}//${host}/api/ws/property-updates`;  // Changed path
-
-        ws = new WebSocket(wsUrl);
-
-        ws.onopen = () => {
-          console.log('WebSocket connected');
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === 'CONNECTED') {
-              console.log('WebSocket connection confirmed');
-            } else if (data.type === 'PROPERTY_UPDATED' && data.propertyId === propertyId) {
-              queryClient.invalidateQueries({ 
-                queryKey: [`/api/properties/owner/${user?.id}`]
-              });
-            }
-          } catch (error) {
-            console.error('WebSocket message error:', error);
-          }
-        };
-
-        ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
-        };
-
-        ws.onclose = () => {
-          console.log('WebSocket closed, attempting to reconnect...');
-          reconnectTimeout = setTimeout(connectWebSocket, 5000);
-        };
-
-      } catch (error) {
-        console.error('Error setting up WebSocket:', error);
-        reconnectTimeout = setTimeout(connectWebSocket, 5000);
-      }
-    };
-
-    connectWebSocket();
-
-    return () => {
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-        ws.close();
-      }
-    };
-  }, [propertyId, user?.id, queryClient]);
 
   const generateCodeMutation = useMutation({
     mutationFn: async () => {

@@ -1,6 +1,5 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { WebSocketServer, WebSocket } from "ws";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { getPropertyRecommendations, generatePropertyDescription, analyzePricing } from "./openai";
@@ -61,38 +60,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
   const httpServer = createServer(app);
 
-  // Set up WebSocket server with a specific path
-  const wss = new WebSocketServer({ 
-    server: httpServer, 
-    path: '/api/ws/property-updates'  // Changed path to avoid conflicts
+
+  // Generate new connection code for a property
+  app.post("/api/properties/:id/connection-code", ensureLandowner, async (req, res) => {
+    try {
+      const property = await storage.getPropertyById(Number(req.params.id));
+      if (!property) return res.status(404).json({ error: "Property not found" });
+      if (property.ownerId !== req.user!.id) return res.status(403).json({ error: "Not authorized" });
+
+      const connectionCode = crypto.randomBytes(4).toString('hex');
+
+      await storage.updateProperty(Number(req.params.id), {
+        connectionCode,
+        status: "available" // Ensure property is available when generating code
+      });
+
+      console.log('Generated connection code:', connectionCode);
+      res.json({ connectionCode });
+    } catch (error) {
+      console.error('Error generating connection code:', error);
+      res.status(500).json({ error: "Failed to generate connection code" });
+    }
   });
 
-  // Keep track of connected clients
-  const clients = new Set<WebSocket>();
-
-  wss.on('connection', (ws) => {
-    clients.add(ws);
-    console.log('WebSocket client connected');
-
-    ws.on('close', () => {
-      clients.delete(ws);
-      console.log('WebSocket client disconnected');
-    });
-
-    // Send immediate confirmation
-    ws.send(JSON.stringify({ type: 'CONNECTED' }));
-  });
-
-  // Helper function to broadcast updates
-  const broadcastPropertyUpdate = (propertyId: number) => {
-    const message = JSON.stringify({ type: 'PROPERTY_UPDATED', propertyId });
-    console.log('Broadcasting update for property:', propertyId);
-    clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
+  // Connect tenant to property using code
+  app.post("/api/properties/connect/:code", ensureAuthenticated, async (req, res) => {
+    try {
+      if (req.user!.role !== "tenant") {
+        return res.status(403).json({ error: "Only tenants can connect to properties" });
       }
-    });
-  };
+
+      let property = null;
+      const code = req.params.code;
+
+      //Improved validation: Check if code is a valid hex string of length 8.
+      if (!/^[a-f0-9]{8}$/i.test(code)) {
+        return res.status(400).json({ error: "Invalid connection code format" });
+      }
+
+      const properties = await storage.getProperties();
+      property = properties.find(p => p.connectionCode === code);
+
+      if (!property) {
+        console.log('No property found for code:', code);
+        return res.status(404).json({ error: "Invalid connection code" });
+      }
+
+      console.log('Found property:', property);
+
+      if (property.status !== "available") {
+        return res.status(400).json({ error: "This property is not available for connection" });
+      }
+
+      const contract = await storage.createTenantContract({
+        propertyId: property.id,
+        tenantId: req.user!.id,
+        landownerId: property.ownerId,
+        startDate: new Date(),
+        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
+        rentAmount: property.rentPrice,
+        documents: [],
+        depositPaid: false,
+        contractStatus: "active"
+      });
+
+      // Only clear the connection code after a successful connection
+      await storage.updateProperty(property.id, {
+        status: "rented",
+        connectionCode: null,
+      });
+
+      res.json({ contract });
+    } catch (error) {
+      console.error('Error connecting to property:', error);
+      res.status(500).json({ error: "Failed to establish connection" });
+    }
+  });
 
   // Property routes
   app.post("/api/properties", ensureLandowner, async (req, res) => {
@@ -360,88 +403,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.body.status
     );
     res.json(review);
-  });
-
-  // Generate new connection code for a property
-  app.post("/api/properties/:id/connection-code", ensureLandowner, async (req, res) => {
-    try {
-      const property = await storage.getPropertyById(Number(req.params.id));
-      if (!property) return res.status(404).json({ error: "Property not found" });
-      if (property.ownerId !== req.user!.id) return res.status(403).json({ error: "Not authorized" });
-
-      const connectionCode = crypto.randomBytes(4).toString('hex');
-
-      await storage.updateProperty(Number(req.params.id), {
-        connectionCode,
-        status: "available" // Ensure property is available when generating code
-      });
-
-      // Broadcast the update
-      broadcastPropertyUpdate(property.id);
-
-      console.log('Generated connection code:', connectionCode);
-      res.json({ connectionCode });
-    } catch (error) {
-      console.error('Error generating connection code:', error);
-      res.status(500).json({ error: "Failed to generate connection code" });
-    }
-  });
-
-  // Connect tenant to property using code
-  app.post("/api/properties/connect/:code", ensureAuthenticated, async (req, res) => {
-    try {
-      if (req.user!.role !== "tenant") {
-        return res.status(403).json({ error: "Only tenants can connect to properties" });
-      }
-
-      let property = null;
-      const code = req.params.code;
-
-      //Improved validation: Check if code is a valid hex string of length 8.
-      if (!/^[a-f0-9]{8}$/i.test(code)) {
-        return res.status(400).json({ error: "Invalid connection code format" });
-      }
-
-      const properties = await storage.getProperties();
-      property = properties.find(p => p.connectionCode === code);
-
-      if (!property) {
-        console.log('No property found for code:', code);
-        return res.status(404).json({ error: "Invalid connection code" });
-      }
-
-      console.log('Found property:', property);
-
-      if (property.status !== "available") {
-        return res.status(400).json({ error: "This property is not available for connection" });
-      }
-
-      const contract = await storage.createTenantContract({
-        propertyId: property.id,
-        tenantId: req.user!.id,
-        landownerId: property.ownerId,
-        startDate: new Date(),
-        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
-        rentAmount: property.rentPrice,
-        documents: [],
-        depositPaid: false,
-        contractStatus: "active"
-      });
-
-      // Only clear the connection code after a successful connection
-      await storage.updateProperty(property.id, {
-        status: "rented",
-        connectionCode: null,
-      });
-
-      // Broadcast the update
-      broadcastPropertyUpdate(property.id);
-
-      res.json({ contract });
-    } catch (error) {
-      console.error('Error connecting to property:', error);
-      res.status(500).json({ error: "Failed to establish connection" });
-    }
   });
 
   return httpServer;
