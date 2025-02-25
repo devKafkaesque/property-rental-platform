@@ -192,6 +192,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add Maintenance Request routes
+  app.post("/api/maintenance-requests", ensureAuthenticated, async (req, res) => {
+    if (req.user!.role !== "tenant") {
+      return res.status(403).json({ error: "Only tenants can submit maintenance requests" });
+    }
+
+    try {
+      const data = insertMaintenanceRequestSchema.parse(req.body);
+
+      // Verify tenant is connected to the property
+      const contracts = await storage.getTenantContractsByTenant(req.user!.id);
+      const isConnected = contracts.some(contract => 
+        contract.propertyId === data.propertyId && 
+        contract.contractStatus === "active"
+      );
+
+      if (!isConnected) {
+        return res.status(403).json({
+          error: "You can only submit maintenance requests for properties you are connected to"
+        });
+      }
+
+      const request = await storage.createMaintenanceRequest({
+        ...data,
+        tenantId: req.user!.id,
+      });
+      res.json(request);
+    } catch (error) {
+      console.error('Error creating maintenance request:', error);
+      res.status(500).json({ error: "Failed to create maintenance request" });
+    }
+  });
+
+  app.get("/api/maintenance-requests/tenant/:propertyId", ensureAuthenticated, async (req, res) => {
+    if (req.user!.role !== "tenant") {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    try {
+      const propertyId = Number(req.params.propertyId);
+      const requests = await storage.getMaintenanceRequestsByTenant(req.user!.id);
+      const propertyRequests = requests.filter(request => request.propertyId === propertyId);
+      res.json(propertyRequests);
+    } catch (error) {
+      console.error('Error fetching maintenance requests:', error);
+      res.status(500).json({ error: "Failed to fetch maintenance requests" });
+    }
+  });
+
+  app.get("/api/maintenance-requests/property/:id", ensureLandowner, async (req, res) => {
+    try {
+      const requests = await storage.getMaintenanceRequestsByProperty(Number(req.params.id));
+      res.json(requests);
+    } catch (error) {
+      console.error('Error fetching property maintenance requests:', error);
+      res.status(500).json({ error: "Failed to fetch maintenance requests" });
+    }
+  });
+
+  app.post("/api/maintenance-requests/:id/status", ensureLandowner, async (req, res) => {
+    try {
+      const request = await storage.updateMaintenanceStatus(
+        Number(req.params.id),
+        req.body.status
+      );
+      res.json(request);
+    } catch (error) {
+      console.error('Error updating maintenance request status:', error);
+      res.status(500).json({ error: "Failed to update maintenance request status" });
+    }
+  });
+
+  app.post("/api/maintenance-requests/:id/notes", ensureLandowner, async (req, res) => {
+    try {
+      const request = await storage.updateMaintenanceNotes(
+        Number(req.params.id),
+        req.body.notes
+      );
+      res.json(request);
+    } catch (error) {
+      console.error('Error updating maintenance request notes:', error);
+      res.status(500).json({ error: "Failed to update maintenance request notes" });
+    }
+  });
+
   // Serve uploaded files
   app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 

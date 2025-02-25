@@ -4,6 +4,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import MaintenanceRequestForm from "@/components/maintenance-request-form";
+import MaintenanceRequestList from "@/components/maintenance-request-list";
 import { 
   Building2, 
   Home, 
@@ -16,7 +18,9 @@ import {
   LinkIcon,
   CheckCircle2,
   XCircle,
-  ArrowLeft
+  ArrowLeft,
+  WrenchIcon,
+  ClipboardList
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
@@ -57,7 +61,7 @@ export default function ConnectionsDashboard() {
       const res = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`);
       return res.json();
     },
-    onSuccess: (data, propertyId) => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/properties/owner/${user?.id}`] });
       toast({
         title: "Connection Code Generated",
@@ -176,9 +180,10 @@ export default function ConnectionsDashboard() {
                 if (!property) return null;
 
                 const PropertyIcon = getPropertyIcon(property.type, property.category);
+                const isActiveConnection = contract.contractStatus === "active";
 
                 return (
-                  <Card key={contract.id}>
+                  <Card key={contract.id} className="flex flex-col">
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
@@ -193,8 +198,8 @@ export default function ConnectionsDashboard() {
                         </span>
                       </div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
+                    <CardContent className="flex-grow">
+                      <div className="space-y-4">
                         <p className="text-sm text-muted-foreground">{property.address}</p>
                         <div className="flex items-center space-x-2">
                           <LinkIcon className="h-4 w-4" />
@@ -213,6 +218,23 @@ export default function ConnectionsDashboard() {
                             </>
                           )}
                         </div>
+
+                        {isActiveConnection && (
+                          <div className="space-y-4 mt-6">
+                            <div className="flex items-center space-x-2">
+                              <WrenchIcon className="h-4 w-4" />
+                              <h3 className="font-medium">Maintenance Requests</h3>
+                            </div>
+                            <MaintenanceRequestForm propertyId={property.id} />
+                            <div className="mt-4">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <ClipboardList className="h-4 w-4" />
+                                <h3 className="font-medium">Request History</h3>
+                              </div>
+                              <MaintenanceRequestList propertyId={property.id} />
+                            </div>
+                          </div>
+                        )}
 
                         <Button 
                           className="w-full mt-4" 

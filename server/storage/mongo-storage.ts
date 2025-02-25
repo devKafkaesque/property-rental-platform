@@ -1,6 +1,6 @@
 import { IStorage } from "../storage";
-import { User, Property, Booking, ViewingRequest, Review, InsertUser, TenantContract } from "@shared/schema";
-import { UserModel, PropertyModel, BookingModel, ViewingRequestModel, ReviewModel, TenantContractModel } from "../db/models";
+import { User, Property, Booking, ViewingRequest, Review, InsertUser, TenantContract, MaintenanceRequest } from "@shared/schema";
+import { UserModel, PropertyModel, BookingModel, ViewingRequestModel, ReviewModel, TenantContractModel, MaintenanceRequestModel } from "../db/models";
 import session from "express-session";
 import MongoStore from "connect-mongo";
 
@@ -247,5 +247,60 @@ export class MongoStorage implements IStorage {
     );
     if (!contract) throw new Error("Tenant contract not found");
     return contract.toObject();
+  }
+
+  // Add Maintenance Request operations
+  async createMaintenanceRequest(request: Omit<MaintenanceRequest, "id" | "createdAt" | "status">): Promise<MaintenanceRequest> {
+    const lastRequest = await MaintenanceRequestModel.findOne().sort({ id: -1 });
+    const newId = (lastRequest?.id || 0) + 1;
+
+    const newRequest = new MaintenanceRequestModel({
+      ...request,
+      id: newId,
+      status: "pending",
+    });
+    await newRequest.save();
+    return newRequest.toObject();
+  }
+
+  async getMaintenanceRequestsByProperty(propertyId: number): Promise<MaintenanceRequest[]> {
+    const requests = await MaintenanceRequestModel.find({ propertyId });
+    return requests.map(request => request.toObject());
+  }
+
+  async getMaintenanceRequestsByTenant(tenantId: number): Promise<MaintenanceRequest[]> {
+    const requests = await MaintenanceRequestModel.find({ tenantId });
+    return requests.map(request => request.toObject());
+  }
+
+  async updateMaintenanceStatus(id: number, status: MaintenanceRequest["status"]): Promise<MaintenanceRequest> {
+    const request = await MaintenanceRequestModel.findOneAndUpdate(
+      { id },
+      { 
+        $set: { 
+          status,
+          updatedAt: new Date(),
+          ...(status === "completed" ? { completedAt: new Date() } : {})
+        } 
+      },
+      { new: true }
+    );
+    if (!request) throw new Error("Maintenance request not found");
+    return request.toObject();
+  }
+
+  async updateMaintenanceNotes(id: number, notes: string): Promise<MaintenanceRequest> {
+    const request = await MaintenanceRequestModel.findOneAndUpdate(
+      { id },
+      { 
+        $set: { 
+          notes,
+          updatedAt: new Date()
+        } 
+      },
+      { new: true }
+    );
+    if (!request) throw new Error("Maintenance request not found");
+    return request.toObject();
   }
 }

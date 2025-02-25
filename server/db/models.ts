@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
-import { User, Property, ViewingRequest, Review, Booking, TenantContract } from "@shared/schema";
+import { User, Property, ViewingRequest, Review, Booking, TenantContract, MaintenanceRequest } from "@shared/schema";
 
 // User Schema
 export interface UserDocument extends Omit<User, "id">, Document {
@@ -131,6 +131,34 @@ const tenantContractSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// Add MaintenanceRequest interface and schema
+export interface MaintenanceRequestDocument extends Omit<MaintenanceRequest, "id">, Document {
+  id: number;
+}
+
+const maintenanceRequestSchema = new Schema({
+  id: { type: Number, required: true, unique: true },
+  propertyId: { type: Number, required: true },
+  tenantId: { type: Number, required: true },
+  description: { type: String, required: true },
+  priority: { 
+    type: String, 
+    required: true, 
+    enum: ["low", "medium", "high", "emergency"] 
+  },
+  status: {
+    type: String,
+    required: true,
+    enum: ["pending", "in_progress", "completed", "cancelled"],
+    default: "pending"
+  },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+  completedAt: { type: Date },
+  notes: { type: String },
+  images: { type: [String], default: [] },
+});
+
 // Create and export models
 export const UserModel = mongoose.model<UserDocument>("User", userSchema);
 export const PropertyModel = mongoose.model<PropertyDocument>("Property", propertySchema);
@@ -138,3 +166,4 @@ export const BookingModel = mongoose.model<BookingDocument>("Booking", bookingSc
 export const ViewingRequestModel = mongoose.model<ViewingRequestDocument>("ViewingRequest", viewingRequestSchema);
 export const ReviewModel = mongoose.model<ReviewDocument>("Review", reviewSchema);
 export const TenantContractModel = mongoose.model<TenantContractDocument>("TenantContract", tenantContractSchema);
+export const MaintenanceRequestModel = mongoose.model<MaintenanceRequestDocument>("MaintenanceRequest", maintenanceRequestSchema);

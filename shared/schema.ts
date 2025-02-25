@@ -167,7 +167,6 @@ export const insertUserSchema = createInsertSchema(users).pick({
   username: z.string().min(3, "Username must be at least 3 characters"),
 });
 
-
 export const insertBookingSchema = createInsertSchema(bookings).pick({
   propertyId: true,
   startDate: true,
@@ -199,3 +198,39 @@ export type Booking = typeof bookings.$inferSelect;
 export type TenantContract = typeof tenantContracts.$inferSelect;
 export type InsertTenantContract = z.infer<typeof insertTenantContractSchema>;
 export type InsertProperty = z.infer<typeof insertPropertySchema>;
+
+// Add new enums for maintenance requests
+export const MaintenancePriority = z.enum(["low", "medium", "high", "emergency"]);
+export const MaintenanceStatus = z.enum(["pending", "in_progress", "completed", "cancelled"]);
+
+export type MaintenancePriority = z.infer<typeof MaintenancePriority>;
+export type MaintenanceStatus = z.infer<typeof MaintenanceStatus>;
+
+// Add maintenance requests table
+export const maintenanceRequests = pgTable("maintenance_requests", {
+  id: serial("id").primaryKey(),
+  propertyId: integer("property_id").notNull(),
+  tenantId: integer("tenant_id").notNull(),
+  description: text("description").notNull(),
+  priority: text("priority").notNull().$type<MaintenancePriority>(),
+  status: text("status").notNull().$type<MaintenanceStatus>().default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  notes: text("notes"),
+  images: text("images").array().default([]),
+});
+
+export const insertMaintenanceRequestSchema = createInsertSchema(maintenanceRequests).pick({
+  propertyId: true,
+  description: true,
+  priority: true,
+  images: true,
+}).extend({
+  description: z.string().min(10, "Description must be at least 10 characters long"),
+  priority: MaintenancePriority,
+  images: z.array(z.string()).default([]),
+});
+
+export type MaintenanceRequest = typeof maintenanceRequests.$inferSelect;
+export type InsertMaintenanceRequest = z.infer<typeof insertMaintenanceRequestSchema>;
