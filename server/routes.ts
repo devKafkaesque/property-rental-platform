@@ -16,13 +16,11 @@ import fs from "fs";
 import express from "express";
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
-import { generatePropertyDescription, analyzePricing } from "./openai";
-import { compareProperties } from "./gemini";  // Update import to use Gemini instead of openai/xai
+import { generatePropertyDescription, analyzePricing, compareProperties } from "./gemini";  // Import from gemini.ts
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Configure multer for image uploads
 const multerStorage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadDir = path.join(__dirname, '..', 'uploads');
@@ -68,10 +66,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
   const httpServer = createServer(app);
 
-  // Serve uploaded files first
   app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
-  // Property routes
   app.get("/api/properties", async (req, res) => {
     try {
       const properties = await storage.getProperties();
@@ -93,16 +89,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid property data format" });
       }
 
-      // Add image paths if images were uploaded
       const images = (req.files as Express.Multer.File[])?.map(file => `/uploads/${file.filename}`) || [];
       propertyData.images = images;
 
-      // Validate the data
       const validatedData = insertPropertySchema.parse({
         ...propertyData,
       });
 
-      // Create the property with all required fields
       const property = await storage.createProperty({
         ...validatedData,
         ownerId: req.user!.id,
@@ -209,7 +202,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const code = req.params.code.toUpperCase();
 
-      // Find property with matching connection code
       const properties = await storage.getProperties();
       const property = properties.find(p => p.connectionCode === code);
 
@@ -221,12 +213,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Property is not available for connection" });
       }
 
-      // Calculate end date (1 year from start)
       const startDate = new Date();
       const endDate = new Date();
       endDate.setFullYear(endDate.getFullYear() + 1);
 
-      // Create tenant contract without depositAmount
       const contract = await storage.createTenantContract({
         propertyId: property.id,
         tenantId: req.user!.id,
@@ -239,7 +229,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         documents: []
       });
 
-      // Update property status
       await storage.updateProperty(property.id, {
         status: "rented" as const,
         connectionCode: null
@@ -255,7 +244,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Viewing Request routes
   app.post("/api/viewing-requests", ensureAuthenticated, async (req, res) => {
     if (req.user!.role !== "tenant") {
       return res.status(403).json({ error: "Only tenants can request property viewings" });
@@ -264,7 +252,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = insertViewingRequestSchema.parse(req.body);
 
-      // Check if tenant has an active request for this property
       const existingRequests = await storage.getViewingRequestsByTenant(req.user!.id);
       const hasActiveRequest = existingRequests.some(request => {
         return request.propertyId === data.propertyId &&
@@ -312,7 +299,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/viewing-requests/property/:id", ensureLandowner, async (req, res) => {
     try {
       const requests = await storage.getViewingRequestsByProperty(Number(req.params.id));
-      // Fetch tenant details for each request
       const requestsWithTenants = await Promise.all(requests.map(async request => {
         const tenant = await storage.getUser(request.tenantId);
         return {
@@ -353,7 +339,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add Maintenance Request routes
   app.post("/api/maintenance-requests", ensureAuthenticated, async (req, res) => {
     if (req.user!.role !== "tenant") {
       return res.status(403).json({ error: "Only tenants can submit maintenance requests" });
@@ -362,7 +347,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = insertMaintenanceRequestSchema.parse(req.body);
 
-      // Verify tenant is connected to the property
       const contracts = await storage.getTenantContractsByTenant(req.user!.id);
       const isConnected = contracts.some(contract =>
         contract.propertyId === data.propertyId &&
@@ -385,7 +369,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tenantReview: null
       });
 
-      // Log the created request
       console.log('Created maintenance request:', request);
       res.json(request);
     } catch (error) {
@@ -413,7 +396,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/maintenance-requests/property/:id", ensureLandowner, async (req, res) => {
     try {
       const requests = await storage.getMaintenanceRequestsByProperty(Number(req.params.id));
-      // Fetch tenant details for each request
       const requestsWithTenants = await Promise.all(requests.map(async request => {
         const tenant = await storage.getUser(request.tenantId);
         return {
@@ -455,13 +437,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add this new route after the other maintenance request routes
   app.get("/api/maintenance-requests/all", ensureLandowner, async (req, res) => {
     try {
-      // Get all properties owned by the landlord
       const properties = await storage.getPropertiesByOwner(req.user!.id);
 
-      // Get maintenance requests for all properties
       const requests = await Promise.all(
         properties.map(async (property) => {
           const propertyRequests = await storage.getMaintenanceRequestsByProperty(property.id);
@@ -479,7 +458,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      // Format response as an object with propertyId keys
       const response = requests.reduce((acc, curr) => {
         acc[curr.propertyId] = curr.requests;
         return acc;
@@ -496,7 +474,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { status, landlordNotes } = req.body;
 
-      // Validate the new status
       if (!["in_progress", "needs_review"].includes(status)) {
         return res.status(400).json({ error: "Invalid status update" });
       }
@@ -528,7 +505,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { status, tenantReview } = req.body;
 
-      // Only allow completing or cancelling the request
       if (!["completed", "cancelled"].includes(status)) {
         return res.status(400).json({ error: "Invalid status update" });
       }
@@ -547,7 +523,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add these new routes after the existing routes
   app.delete("/api/properties/:id", ensureLandowner, async (req, res) => {
     try {
       const propertyId = Number(req.params.id);
@@ -573,12 +548,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const propertyId = Number(req.params.id);
 
-      // Check if user is tenant
       if (req.user!.role !== "tenant") {
         return res.status(403).json({ error: "Only tenants can disconnect from properties" });
       }
 
-      // Get the active contract
       const contracts = await storage.getTenantContractsByTenant(req.user!.id);
       const activeContract = contracts.find(c =>
         c.propertyId === propertyId &&
@@ -589,12 +562,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "No active connection found" });
       }
 
-      // Update contract status
       await storage.updateTenantContract(activeContract.id, {
         contractStatus: "terminated"
       });
 
-      // Update property status
       await storage.updateProperty(propertyId, {
         status: "available" as const
       });
@@ -611,24 +582,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const propertyId = Number(req.params.id);
       const { contractId, reason, type } = req.body;
 
-      // Get the contract
       const contract = await storage.getTenantContractById(contractId);
       if (!contract) {
         return res.status(404).json({ error: "Contract not found" });
       }
 
-      // Get the property
       const property = await storage.getPropertyById(propertyId);
       if (!property) {
         return res.status(404).json({ error: "Property not found" });
       }
 
-      // Verify ownership
       if (property.ownerId !== req.user!.id) {
         return res.status(403).json({ error: "Not authorized to manage this property" });
       }
 
-      // Check if tenant has requested deposit return
       if (contract.depositRequested && contract.depositReturnStatus === "pending") {
         return res.status(400).json({
           error: "Cannot disconnect tenant until deposit return request is handled",
@@ -636,7 +603,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Update contract status
       await storage.updateTenantContract(contractId, {
         contractStatus: "terminated",
         terminationReason: reason,
@@ -644,13 +610,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         terminatedAt: new Date()
       });
 
-      // Check if this was the last active tenant
       const activeContracts = await storage.getTenantContractsByProperty(propertyId);
       const hasActiveContracts = activeContracts.some(c => 
         c.id !== contractId && c.contractStatus === "active"
       );
 
-      // If no more active contracts, set property as available
       if (!hasActiveContracts) {
         console.log(`No active contracts for property ${propertyId}, setting status to available`);
         await storage.updateProperty(propertyId, {
@@ -665,7 +629,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add route to handle deposit return status
   app.post("/api/properties/:id/handle-deposit", ensureLandowner, async (req, res) => {
     try {
       const propertyId = Number(req.params.id);
@@ -696,14 +659,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI routes
   app.post("/api/ai/description", async (req, res) => {
     try {
       const details = req.body;
       const description = await generatePropertyDescription(details);
       res.json(description);
     } catch (error) {
-      console.error('OpenAI API Error:', error);
+      console.error('Gemini API Error:', error);
       res.status(500).json({
         error: "Failed to generate description",
         details: error instanceof Error ? error.message : "Unknown error"
@@ -717,7 +679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pricing = await analyzePricing(details);
       res.json(pricing);
     } catch (error) {
-      console.error('OpenAI API Error:', error);
+      console.error('Gemini API Error:', error);
       res.status(500).json({
         error: "Failed to analyze pricing",
         details: error instanceof Error ? error.message : "Unknown error"
@@ -725,7 +687,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update the comparison route to use Gemini
   app.post("/api/properties/compare", ensureAuthenticated, async (req, res) => {
     try {
       const { propertyIds } = req.body;
@@ -754,12 +715,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const propertyId = Number(req.params.id);
 
-      // Check if user is tenant
       if (req.user!.role !== "tenant") {
         return res.status(403).json({ error: "Only tenants can request deposit return" });
       }
 
-      // Get the active contract
       const contracts = await storage.getTenantContractsByTenant(req.user!.id);
       const activeContract = contracts.find(c =>
         c.propertyId === propertyId &&
@@ -770,7 +729,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "No active connection found" });
       }
 
-      // Update contract with deposit request
       await storage.updateTenantContract(activeContract.id, {
         depositRequested: true,
         depositRequestDate: new Date(),
@@ -789,24 +747,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const propertyId = Number(req.params.id);
       const { contractId, reason, type } = req.body;
 
-      // Get the contract
       const contract = await storage.getTenantContractById(contractId);
       if (!contract) {
         return res.status(404).json({ error: "Contract not found" });
       }
 
-      // Get the property
       const property = await storage.getPropertyById(propertyId);
       if (!property) {
         return res.status(404).json({ error: "Property not found" });
       }
 
-      // Verify ownership
       if (property.ownerId !== req.user!.id) {
         return res.status(403).json({ error: "Not authorized to manage this property" });
       }
 
-      // Check if tenant has requested deposit return
       if (contract.depositRequested && contract.depositReturnStatus === "pending") {
         return res.status(400).json({
           error: "Cannot disconnect tenant until deposit return request is handled",
@@ -814,7 +768,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Update contract status
       await storage.updateTenantContract(contractId, {
         contractStatus: "terminated",
         terminationReason: reason,
@@ -822,13 +775,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         terminatedAt: new Date()
       });
 
-      // Check if this was the last active tenant
       const activeContracts = await storage.getTenantContractsByProperty(propertyId);
       const hasActiveContracts = activeContracts.some(c => 
         c.id !== contractId && c.contractStatus === "active"
       );
 
-      // If no more active contracts, set property as available
       if (!hasActiveContracts) {
         console.log(`No active contracts for property ${propertyId}, setting status to available`);
         await storage.updateProperty(propertyId, {
@@ -847,12 +798,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = Number(req.params.id);
 
-      // Users can only delete their own account
       if (userId !== req.user!.id) {
         return res.status(403).json({ error: "Not authorized to delete this user" });
       }
 
-      // If user is a landowner, check if they have any active properties
       if (req.user!.role === "landowner") {
         const properties = await storage.getPropertiesByOwner(userId);
         const activeProperties = properties.filter(p => p.status === "rented");
@@ -864,7 +813,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // If user is a tenant, check if they have any active contracts
       if (req.user!.role === "tenant") {
         const contracts = await storage.getTenantContractsByTenant(userId);
         const activeContracts = contracts.filter(c => c.contractStatus === "active");
@@ -878,7 +826,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.deleteUser(userId);
 
-      // Logout the user after deletion
       req.logout(() => {
         res.json({ success: true });
       });
