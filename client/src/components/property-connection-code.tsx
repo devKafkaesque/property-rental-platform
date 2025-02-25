@@ -19,28 +19,39 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
   const { user } = useAuth();
 
   useEffect(() => {
-    // Set up WebSocket connection
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
-    const ws = new WebSocket(wsUrl);
+    let ws: WebSocket | null = null;
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'PROPERTY_UPDATED' && data.propertyId === propertyId) {
-          // Invalidate and refetch property data
-          queryClient.invalidateQueries({ 
-            queryKey: [`/api/properties/owner/${user?.id}`]
-          });
+    try {
+      // Set up WebSocket connection
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'PROPERTY_UPDATED' && data.propertyId === propertyId) {
+            // Invalidate and refetch property data
+            queryClient.invalidateQueries({ 
+              queryKey: [`/api/properties/owner/${user?.id}`]
+            });
+          }
+        } catch (error) {
+          console.error('WebSocket message error:', error);
         }
-      } catch (error) {
-        console.error('WebSocket message error:', error);
-      }
-    };
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+
+    } catch (error) {
+      console.error('Error setting up WebSocket:', error);
+    }
 
     // Clean up on unmount
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
         ws.close();
       }
     };
@@ -49,28 +60,21 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
   const generateCodeMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`);
+      if (!res.ok) {
+        throw new Error("Failed to generate connection code");
+      }
       const data = await res.json();
-      console.log('Generated code response:', data);
       return data;
     },
     onSuccess: (data) => {
       if (data.connectionCode) {
-        console.log('Setting new code:', data.connectionCode);
         setCurrentCode(data.connectionCode);
-        // Invalidate the query to refresh the property list
         queryClient.invalidateQueries({ 
           queryKey: [`/api/properties/owner/${user?.id}`]
         });
         toast({
           title: "Connection code generated",
           description: "Share this code with your tenant to establish a connection.",
-        });
-      } else {
-        console.error('No connection code in response:', data);
-        toast({
-          title: "Error",
-          description: "Failed to generate connection code. Please try again.",
-          variant: "destructive",
         });
       }
     },
@@ -86,13 +90,22 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
 
   const copyToClipboard = async () => {
     if (currentCode) {
-      await navigator.clipboard.writeText(currentCode);
-      setCopied(true);
-      toast({
-        title: "Copied to clipboard",
-        description: "The connection code has been copied to your clipboard.",
-      });
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        await navigator.clipboard.writeText(currentCode);
+        setCopied(true);
+        toast({
+          title: "Copied to clipboard",
+          description: "The connection code has been copied to your clipboard.",
+        });
+        setTimeout(() => setCopied(false), 2000);
+      } catch (error) {
+        console.error('Error copying to clipboard:', error);
+        toast({
+          title: "Error",
+          description: "Failed to copy code to clipboard.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
