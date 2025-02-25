@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { Property } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Star, AlertCircle, Loader2 } from "lucide-react";
@@ -31,13 +38,13 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent 
-        className="sm:max-w-[900px] h-[80vh] overflow-y-auto"
-        aria-labelledby="comparison-title"
-      >
-        <h2 id="comparison-title" className="text-lg font-semibold mb-4">
-          Compare Properties
-        </h2>
+      <DialogContent className="sm:max-w-[900px] h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Property Comparison</DialogTitle>
+          <DialogDescription>
+            Compare features and insights for selected properties
+          </DialogDescription>
+        </DialogHeader>
 
         {isLoading ? (
           <div className="flex justify-center items-center p-8">
@@ -114,11 +121,11 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
           </div>
         )}
 
-        <div className="mt-6 flex justify-end">
+        <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

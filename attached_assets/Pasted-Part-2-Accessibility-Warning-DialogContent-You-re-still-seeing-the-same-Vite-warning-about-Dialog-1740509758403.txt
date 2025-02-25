@@ -1,0 +1,58 @@
+Part 2: Accessibility Warning (DialogContent)
+You’re still seeing the same Vite warning about DialogContent needing a DialogTitle for accessibility, as we discussed earlier. Since it’s recurring, it’s likely part of your frontend code rendering a dialog. Here’s how to resolve it (reiterating with context from your logs):
+
+Likely Scenario
+Your app is making a POST /api/properties/compare request, receiving the JSON response, and then displaying it in a dialog. The dialog’s DialogContent component is missing a DialogTitle and/or aria-describedby, triggering the warning.
+
+Quick Fix
+Update your dialog to include a DialogTitle. Assuming you’re using Radix UI in a React app, here’s an example tailored to your property comparison:
+
+jsx
+Wrap
+Copy
+import { Dialog, DialogContent, DialogTitle } from '@radix-ui/react-dialog';
+
+function PropertyComparisonDialog({ properties }) {
+  return (
+    <Dialog>
+      <DialogContent aria-describedby="property-comparison-desc">
+        <DialogTitle>Property Comparison Results</DialogTitle>
+        <p id="property-comparison-desc">
+          Here’s a comparison of the properties you selected.
+        </p>
+        <pre>{JSON.stringify(properties, null, 2)}</pre>
+      </DialogContent>
+    </Dialog>
+  );
+}
+Why this works:
+Adds a DialogTitle for screen readers.
+Includes aria-describedby linking to a description.
+No more warnings!
+If You Don’t Want a Visible Title
+Use VisuallyHidden as mentioned before:
+
+jsx
+Wrap
+Copy
+import { Dialog, DialogContent, DialogTitle } from '@radix-ui/react-dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+
+function PropertyComparisonDialog({ properties }) {
+  return (
+    <Dialog>
+      <DialogContent aria-describedby="property-comparison-desc">
+        <DialogTitle asChild>
+          <VisuallyHidden>Property Comparison Results</VisuallyHidden>
+        </DialogTitle>
+        <p id="property-comparison-desc">
+          Here’s a comparison of the properties you selected.
+        </p>
+        <pre>{JSON.stringify(properties, null, 2)}</pre>
+      </DialogContent>
+    </Dialog>
+  );
+}
+Where to Look
+Check your codebase for where /api/properties/compare response is rendered. It’s likely in a component tied to that endpoint.
+Search for <DialogContent> and ensure it has a <DialogTitle> child.
