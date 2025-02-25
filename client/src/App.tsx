@@ -9,6 +9,7 @@ import AuthPage from "@/pages/auth-page";
 import ViewPropertyPage from "@/pages/property-page";
 import ManagePropertyPage from "@/pages/manage-property-page";
 import Dashboard from "@/pages/dashboard";
+import ConnectPage from "@/pages/connect";
 import { ProtectedRoute } from "./lib/protected-route";
 
 function Router() {
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <Route path="/" component={HomePage} />
       <ProtectedRoute path="/dashboard" component={Dashboard} />
+      <ProtectedRoute path="/connect" component={ConnectPage} />
       <Route path="/property/:id" component={ViewPropertyPage} />
       <ProtectedRoute path="/property/:id/manage" component={ManagePropertyPage} />
       <Route component={NotFound} />

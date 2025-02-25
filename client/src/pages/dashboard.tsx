@@ -6,9 +6,9 @@ import PropertyCard from "@/components/property-card";
 import PropertySearch from "@/components/property-search";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, LogOut } from "lucide-react";
+import { Loader2, LogOut, Link as LinkIcon } from "lucide-react";
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import {
   Dialog,
   DialogContent,
@@ -56,22 +56,32 @@ export default function Dashboard() {
           <h1 className="text-4xl font-bold">
             Welcome, {user.username}!
           </h1>
-          <Button
-            variant="outline"
-            onClick={() => {
-              logoutMutation.mutate(undefined, {
-                onSuccess: () => setLocation("/auth")
-              });
-            }}
-            disabled={logoutMutation.isPending}
-          >
-            {logoutMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <LogOut className="h-4 w-4 mr-2" />
+          <div className="flex items-center gap-4">
+            {user.role === "tenant" && (
+              <Link href="/connect">
+                <Button variant="outline">
+                  <LinkIcon className="h-4 w-4 mr-2" />
+                  Connect to Property
+                </Button>
+              </Link>
             )}
-            Logout
-          </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                logoutMutation.mutate(undefined, {
+                  onSuccess: () => setLocation("/auth")
+                });
+              }}
+              disabled={logoutMutation.isPending}
+            >
+              {logoutMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <LogOut className="h-4 w-4 mr-2" />
+              )}
+              Logout
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-6">
