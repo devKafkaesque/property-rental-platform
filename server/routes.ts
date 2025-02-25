@@ -367,12 +367,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestDate = new Date(request.createdAt);
       const oneMonthAgo = new Date();
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-      return request.propertyId === data.propertyId && requestDate > oneMonthAgo;
+      // Only check for pending or approved requests from this tenant
+      return request.propertyId === data.propertyId && 
+             request.tenantId === req.user!.id && 
+             request.status !== 'cancelled' &&
+             request.status !== 'completed' &&
+             requestDate > oneMonthAgo;
     });
 
     if (hasRecentRequest) {
       return res.status(403).json({
-        error: "You can only request one viewing per property per month"
+        error: "You already have an active viewing request for this property. Please wait for it to be completed or cancelled before making another request."
       });
     }
 

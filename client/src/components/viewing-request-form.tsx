@@ -23,12 +23,24 @@ export default function ViewingRequestForm({ propertyId, onSuccess }: ViewingReq
     queryKey: [`/api/viewing-requests/tenant`],
   });
 
-  const hasRecentRequest = existingRequests?.some(request => {
+  const hasActiveRequest = existingRequests?.some(request => {
     const requestDate = new Date(request.createdAt);
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-    return request.propertyId === propertyId && requestDate > oneMonthAgo;
+    return request.propertyId === propertyId && 
+           request.status !== 'cancelled' &&
+           request.status !== 'completed' &&
+           requestDate > oneMonthAgo;
   });
+
+  if (hasActiveRequest) {
+    return (
+      <div className="text-muted-foreground text-sm">
+        You already have an active viewing request for this property. 
+        Please wait for it to be completed or cancelled before making another request.
+      </div>
+    );
+  }
 
   const form = useForm({
     resolver: zodResolver(insertViewingRequestSchema),
@@ -41,9 +53,6 @@ export default function ViewingRequestForm({ propertyId, onSuccess }: ViewingReq
 
   const viewingRequestMutation = useMutation({
     mutationFn: async (data: any) => {
-      if (hasRecentRequest) {
-        throw new Error("You can only request one viewing per property per month");
-      }
       // Convert date to ISO string before sending
       const formattedData = {
         ...data,
@@ -70,14 +79,6 @@ export default function ViewingRequestForm({ propertyId, onSuccess }: ViewingReq
     },
   });
 
-  if (hasRecentRequest) {
-    return (
-      <div className="text-muted-foreground text-sm">
-        You have already requested a viewing for this property in the last month. 
-        Please wait before requesting another viewing.
-      </div>
-    );
-  }
 
   return (
     <Form {...form}>
