@@ -13,7 +13,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import { Upload, X, Loader2 } from "lucide-react";
+import { Upload, X, Loader2, DollarSign } from "lucide-react";
 import { AIPropertyHelper } from "./ai-property-helper";
 
 interface PropertyFormProps {
@@ -40,6 +40,8 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
       condition: "",
       category: "standard",
       images: [],
+      rentPrice: undefined, 
+      depositAmount: undefined, 
     },
   });
 
@@ -54,11 +56,15 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
     marketInsights: string[];
   }) => {
     setSuggestedPrice(pricing.suggestedPrice);
+    form.setValue("rentPrice", pricing.suggestedPrice);
+    form.setValue("depositAmount", pricing.suggestedPrice);
+
     toast({
       title: "Price Analysis",
       description: `Suggested price range: $${pricing.priceRange.min} - $${pricing.priceRange.max}\n${pricing.justification}`,
     });
   };
+
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -105,8 +111,13 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
         const propertyData = {
           ...data,
           images: imageUrls,
+          rentPrice: Number(data.rentPrice), 
+          depositAmount: Number(data.depositAmount), 
         };
         const res = await apiRequest("POST", "/api/properties", propertyData);
+        if (!res.ok) {
+          throw new Error("Failed to create property");
+        }
         return res.json();
       } catch (error) {
         toast({
@@ -337,6 +348,59 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
                 ))}
               </div>
             )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="rentPrice"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Monthly Rent (USD)</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="number"
+                        placeholder="Enter monthly rent"
+                        className="pl-9"
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e.target.valueAsNumber);
+                          if (!form.getValues("depositAmount")) {
+                            form.setValue("depositAmount", e.target.valueAsNumber);
+                          }
+                        }}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="depositAmount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Security Deposit (USD)</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="number"
+                        placeholder="Enter security deposit"
+                        className="pl-9"
+                        {...field}
+                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
           {suggestedPrice && (
