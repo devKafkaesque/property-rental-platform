@@ -125,15 +125,19 @@ export default function MaintenanceRequestList({ propertyId }: MaintenanceReques
 
             <p className="mt-2">{request.description}</p>
 
+            {/* Always show landlord notes if they exist */}
             {request.landlordNotes && (
-              <div className="mt-4 text-sm text-muted-foreground">
-                <strong>Landlord Notes:</strong> {request.landlordNotes}
+              <div className="mt-4 p-3 bg-muted rounded-lg">
+                <p className="text-sm font-medium mb-1">Landlord Notes:</p>
+                <p className="text-sm">{request.landlordNotes}</p>
               </div>
             )}
 
+            {/* Show tenant review if it exists */}
             {request.tenantReview && (
-              <div className="mt-4 text-sm text-muted-foreground">
-                <strong>Tenant Review:</strong> {request.tenantReview}
+              <div className="mt-4 p-3 bg-muted rounded-lg">
+                <p className="text-sm font-medium mb-1">Tenant Review:</p>
+                <p className="text-sm">{request.tenantReview}</p>
               </div>
             )}
 
