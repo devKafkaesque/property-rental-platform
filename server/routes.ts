@@ -376,7 +376,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const request = await storage.createMaintenanceRequest({
         ...data,
         tenantId: req.user!.id,
+        status: "pending",
+        updatedAt: new Date(),
+        completedAt: null,
+        notes: null
       });
+
+      // Log the created request
+      console.log('Created maintenance request:', request);
       res.json(request);
     } catch (error) {
       console.error('Error creating maintenance request:', error);
@@ -403,7 +410,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/maintenance-requests/property/:id", ensureLandowner, async (req, res) => {
     try {
       const requests = await storage.getMaintenanceRequestsByProperty(Number(req.params.id));
-      res.json(requests);
+      // Fetch tenant details for each request
+      const requestsWithTenants = await Promise.all(requests.map(async request => {
+        const tenant = await storage.getUser(request.tenantId);
+        return {
+          ...request,
+          tenantName: tenant?.username || 'Unknown User'
+        };
+      }));
+      console.log('Maintenance requests with tenant details:', requestsWithTenants);
+      res.json(requestsWithTenants);
     } catch (error) {
       console.error('Error fetching property maintenance requests:', error);
       res.status(500).json({ error: "Failed to fetch maintenance requests" });

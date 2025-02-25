@@ -4,14 +4,23 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/use-auth";
 
 interface MaintenanceRequestListProps {
   propertyId: number;
 }
 
+interface MaintenanceRequestWithTenant extends MaintenanceRequest {
+  tenantName?: string;
+}
+
 export default function MaintenanceRequestList({ propertyId }: MaintenanceRequestListProps) {
-  const { data: requests = [], isLoading } = useQuery<MaintenanceRequest[]>({
-    queryKey: [`/api/maintenance-requests/tenant/${propertyId}`],
+  const { user } = useAuth();
+  const isLandowner = user?.role === "landowner";
+
+  const { data: requests = [], isLoading } = useQuery<MaintenanceRequestWithTenant[]>({
+    queryKey: [isLandowner ? `/api/maintenance-requests/property/${propertyId}` : `/api/maintenance-requests/tenant/${propertyId}`],
+    enabled: !!user && !!propertyId,
   });
 
   if (isLoading) {
@@ -68,6 +77,11 @@ export default function MaintenanceRequestList({ propertyId }: MaintenanceReques
                 {format(new Date(request.createdAt), "PPP")}
               </span>
             </div>
+            {isLandowner && request.tenantName && (
+              <p className="text-sm font-medium mt-2">
+                Requested by: {request.tenantName}
+              </p>
+            )}
             <p className="mt-2">{request.description}</p>
             {request.notes && (
               <div className="mt-4 text-sm text-muted-foreground">
