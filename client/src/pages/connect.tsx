@@ -16,19 +16,24 @@ export default function ConnectPage() {
   const connectMutation = useMutation({
     mutationFn: async (code: string) => {
       const res = await apiRequest("POST", `/api/properties/connect/${code}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to connect to property");
+      }
       return res.json();
     },
     onSuccess: (data) => {
       toast({
         title: "Successfully connected!",
-        description: "You have been connected to the property.",
+        description: "You have been connected to the property. Redirecting to dashboard...",
       });
-      setLocation("/dashboard");
+      // Give time for the toast to be visible
+      setTimeout(() => setLocation("/dashboard"), 2000);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Connection failed",
-        description: "Invalid connection code. Please check and try again.",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -70,9 +75,13 @@ export default function ConnectPage() {
                 disabled={connectMutation.isPending}
               >
                 {connectMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : null}
-                Connect to Property
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Connecting...
+                  </>
+                ) : (
+                  "Connect to Property"
+                )}
               </Button>
             </form>
           </CardContent>

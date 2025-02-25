@@ -352,36 +352,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Connect tenant to property using code
   app.post("/api/properties/connect/:code", ensureAuthenticated, async (req, res) => {
-    if (req.user!.role !== "tenant") {
-      return res.status(403).json({ error: "Only tenants can connect to properties" });
+    try {
+      if (req.user!.role !== "tenant") {
+        return res.status(403).json({ error: "Only tenants can connect to properties" });
+      }
+
+      const properties = await storage.getProperties();
+      const property = properties.find(p => p.connectionCode === req.params.code);
+
+      if (!property) {
+        return res.status(404).json({ error: "Invalid connection code" });
+      }
+
+      if (property.status !== "available") {
+        return res.status(400).json({ error: "This property is not available for connection" });
+      }
+
+      // Create a tenant contract
+      const contract = await storage.createTenantContract({
+        propertyId: property.id,
+        tenantId: req.user!.id,
+        landownerId: property.ownerId,
+        startDate: new Date(),
+        endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)), // Default 1 year
+        rentAmount: property.rentPrice,
+        documents: [],
+        depositPaid: false,
+        contractStatus: "active" // Add contract status
+      });
+
+      // Update property status to rented
+      await storage.updateProperty(property.id, {
+        status: "rented",
+        connectionCode: null, // Clear the code after successful connection
+      });
+
+      res.json({ contract });
+    } catch (error) {
+      console.error('Error connecting to property:', error);
+      res.status(500).json({ error: "Failed to establish connection" });
     }
-
-    const properties = await storage.getProperties();
-    const property = properties.find(p => p.connectionCode === req.params.code);
-
-    if (!property) {
-      return res.status(404).json({ error: "Invalid connection code" });
-    }
-
-    // Create a tenant contract
-    const contract = await storage.createTenantContract({
-      propertyId: property.id,
-      tenantId: req.user!.id,
-      landownerId: property.ownerId,
-      startDate: new Date(),
-      endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)), // Default 1 year
-      rentAmount: property.rentPrice,
-      documents: [],
-      depositPaid: false,
-    });
-
-    // Update property status to rented
-    await storage.updateProperty(property.id, {
-      status: "rented",
-      connectionCode: null, // Clear the code after successful connection
-    });
-
-    res.json({ contract });
   });
 
   const httpServer = createServer(app);
