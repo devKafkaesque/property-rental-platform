@@ -36,7 +36,7 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
     queryKey: ["/api/properties"],
   });
 
-  const { data: comparison, isLoading } = useQuery({
+  const { data: comparison, isLoading, error } = useQuery({
     queryKey: ["/api/properties/compare", propertyIds],
     enabled: !!propertyIds.length && !!properties,
     queryFn: async () => {
@@ -54,6 +54,8 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
         throw error;
       }
     },
+    staleTime: 60000, // Cache for 1 minute
+    retry: 1
   });
 
   const selectedProperties = properties?.filter(p => propertyIds.includes(p.id)) || [];
@@ -63,36 +65,37 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
   return (
     <Dialog open={open} modal>
       <DialogContent 
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
         aria-labelledby={dialogTitleId}
         aria-describedby={dialogDescriptionId}
       >
         <div className="bg-background rounded-lg shadow-lg w-full max-w-6xl max-h-[90vh] overflow-y-auto p-6">
           <DialogHeader>
-            <DialogTitle id={dialogTitleId}>
-              Property Comparison
-            </DialogTitle>
+            <DialogTitle id={dialogTitleId}>Property Comparison</DialogTitle>
             <DialogDescription id={dialogDescriptionId}>
               {isLoading ? "Loading property comparison..." : "Compare selected properties to make an informed decision"}
             </DialogDescription>
           </DialogHeader>
 
           {isLoading ? (
-            <div className="flex justify-center items-center p-8">
+            <div className="flex flex-col items-center justify-center p-8 space-y-4">
               <Loader2 className="h-8 w-8 animate-spin" />
+              <p className="text-sm text-muted-foreground">Analyzing properties...</p>
+            </div>
+          ) : error || comparisonError ? (
+            <div className="text-red-500 p-4 rounded bg-red-50 mb-4">
+              {comparisonError || "Failed to load comparison data. Please try again."}
+            </div>
+          ) : !comparison?.properties ? (
+            <div className="text-amber-500 p-4 rounded bg-amber-50 mb-4">
+              No comparison data available
             </div>
           ) : (
             <div className="space-y-6">
-              {comparisonError && (
-                <div className="text-red-500 p-4 rounded bg-red-50 mb-4">
-                  {comparisonError}
-                </div>
-              )}
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {selectedProperties.map(property => {
                   const PropertyIcon = getPropertyIcon(property.type, property.category);
-                  const propertyAnalysis = comparison?.properties?.[property.id];
+                  const propertyAnalysis = comparison.properties[property.id];
                   console.log("Rendering analysis for property", property.id, propertyAnalysis);
 
                   return (
@@ -162,8 +165,8 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
                             </div>
                           </div>
                         ) : (
-                          <div className="text-muted-foreground text-sm">
-                            Analysis not available
+                          <div className="text-muted-foreground text-sm p-4 bg-gray-50 rounded">
+                            No analysis available for this property
                           </div>
                         )}
                       </CardContent>
