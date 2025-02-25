@@ -99,6 +99,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate the data
       const validatedData = insertPropertySchema.parse({
         ...propertyData,
+      });
+
+      // Create the property with all required fields
+      const property = await storage.createProperty({
+        ...validatedData,
+        ownerId: req.user!.id,
+        status: "available" as const,
+        connectionCode: null,
         yearBuilt: null,
         parkingSpaces: 0,
         petsAllowed: false,
@@ -107,14 +115,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         accessibility: [],
         securityFeatures: [],
         maintainanceHistory: []
-      });
-
-      // Create the property
-      const property = await storage.createProperty({
-        ...validatedData,
-        ownerId: req.user!.id,
-        status: "available",
-        connectionCode: null
       });
 
       res.json(property);
@@ -225,7 +225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const endDate = new Date();
       endDate.setFullYear(endDate.getFullYear() + 1);
 
-      // Create tenant contract
+      // Create tenant contract without depositAmount
       const contract = await storage.createTenantContract({
         propertyId: property.id,
         tenantId: req.user!.id,
@@ -235,12 +235,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contractStatus: "active",
         depositPaid: false,
         rentAmount: property.rentPrice,
-        depositAmount: property.depositAmount
+        documents: []
       });
 
       // Update property status
       await storage.updateProperty(property.id, {
-        status: "rented",
+        status: "rented" as const,
         connectionCode: null
       });
 
@@ -281,6 +281,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const request = await storage.createViewingRequest({
         ...data,
         tenantId: req.user!.id,
+        message: data.message || null
       });
       res.json(request);
     } catch (error) {
@@ -376,10 +377,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const request = await storage.createMaintenanceRequest({
         ...data,
         tenantId: req.user!.id,
-        status: "pending",
         updatedAt: new Date(),
         completedAt: null,
-        notes: null
+        notes: null,
+        landlordNotes: null,
+        tenantReview: null
       });
 
       // Log the created request
