@@ -12,8 +12,11 @@ interface ViewingRequestListProps {
 export default function ViewingRequestList({ propertyId }: ViewingRequestListProps) {
   const { user } = useAuth();
 
-  const { data: requests, isLoading } = useQuery<ViewingRequest[]>({
-    queryKey: [`/api/viewing-requests/tenant`],
+  const { data: requests = [], isLoading } = useQuery<ViewingRequest[]>({
+    queryKey: [`/api/viewing-requests/tenant/${propertyId}`],
+    onSuccess: (data) => {
+      console.log(`Received ${data.length} viewing requests for tenant ${user?.id} and property ${propertyId}`);
+    }
   });
 
   if (isLoading) {
@@ -24,21 +27,7 @@ export default function ViewingRequestList({ propertyId }: ViewingRequestListPro
     );
   }
 
-  if (!requests || requests.length === 0) {
-    return (
-      <div className="text-center text-muted-foreground p-4">
-        No viewing requests yet
-      </div>
-    );
-  }
-
-  // Filter requests for current tenant and property
-  const propertyRequests = requests.filter(request => 
-    request.propertyId === propertyId && 
-    request.tenantId === user?.id
-  );
-
-  if (propertyRequests.length === 0) {
+  if (requests.length === 0) {
     return (
       <div className="text-center text-muted-foreground p-4">
         No viewing requests for this property
@@ -48,7 +37,7 @@ export default function ViewingRequestList({ propertyId }: ViewingRequestListPro
 
   return (
     <div className="space-y-4">
-      {propertyRequests.map((request) => (
+      {requests.map((request) => (
         <Card key={request.id}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">

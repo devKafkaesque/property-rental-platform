@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertViewingRequestSchema } from "@shared/schema";
+import { insertViewingRequestSchema, ViewingRequest } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,11 +27,11 @@ export default function ViewingRequestForm({ propertyId, onSuccess }: ViewingReq
   });
 
   // Fetch existing viewing requests to check for monthly limit
-  const { data: existingRequests } = useQuery({
+  const { data: existingRequests = [] } = useQuery<ViewingRequest[]>({
     queryKey: [`/api/viewing-requests/tenant`],
   });
 
-  const hasActiveRequest = existingRequests?.some(request => {
+  const hasActiveRequest = existingRequests.some(request => {
     const requestDate = new Date(request.createdAt);
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);

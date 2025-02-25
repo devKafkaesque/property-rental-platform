@@ -142,7 +142,9 @@ export class MongoStorage implements IStorage {
   }
 
   async getViewingRequestsByTenant(tenantId: number): Promise<ViewingRequest[]> {
+    console.log(`Fetching viewing requests for tenant ID: ${tenantId}`);
     const requests = await ViewingRequestModel.find({ tenantId });
+    console.log(`Found ${requests.length} requests for tenant ${tenantId}`);
     return requests.map(request => request.toObject());
   }
 
@@ -163,6 +165,16 @@ export class MongoStorage implements IStorage {
       status: "completed"
     });
     return completedViewings.map(viewing => viewing.toObject());
+  }
+
+  async getViewingRequestsByTenantAndProperty(tenantId: number, propertyId: number): Promise<ViewingRequest[]> {
+    console.log(`Fetching viewing requests for tenant ID: ${tenantId} and property ID: ${propertyId}`);
+    const requests = await ViewingRequestModel.find({ 
+      tenantId,
+      propertyId 
+    });
+    console.log(`Found ${requests.length} requests for tenant ${tenantId} and property ${propertyId}`);
+    return requests.map(request => request.toObject());
   }
 
   // Add Review operations
