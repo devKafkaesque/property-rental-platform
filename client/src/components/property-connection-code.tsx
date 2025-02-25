@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Copy, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -19,20 +20,12 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
 
   const generateCodeMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/properties/${propertyId}/connection-code`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-
+      const response = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`);
       const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
+      if (response.ok) {
+        return data;
       }
-      return data;
+      throw new Error(data.error || "Failed to generate code");
     },
     onSuccess: (data) => {
       setCurrentCode(data.connectionCode);
@@ -47,7 +40,7 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to generate code",
+        description: error.message,
         variant: "destructive",
       });
     }
