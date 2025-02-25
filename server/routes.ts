@@ -79,16 +79,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/properties", ensureLandowner, upload.single('image'), async (req, res) => {
     try {
-      const data = insertPropertySchema.parse({...req.body, image: req.file?.filename});
+      // Parse the request body first
+      const propertyData = JSON.parse(req.body.data);
+
+      // Validate the data
+      const data = insertPropertySchema.parse({
+        ...propertyData,
+        images: req.file ? [`/uploads/${req.file.filename}`] : []
+      });
+
+      // Create the property
       const property = await storage.createProperty({
         ...data,
         ownerId: req.user!.id,
-        status: "available"
+        status: "available",
+        connectionCode: null
       });
+
       res.json(property);
     } catch (error) {
       console.error('Error creating property:', error);
-      res.status(500).json({ error: "Failed to create property" });
+      if (error instanceof Error) {
+        res.status(400).json({ 
+          error: "Failed to create property",
+          details: error.message 
+        });
+      } else {
+        res.status(500).json({ error: "Internal server error" });
+      }
     }
   });
 
@@ -368,5 +386,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve uploaded files
   app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
+  // AI routes
+  app.post("/api/ai/description", async (req, res) => {
+    try {
+      const details = req.body;
+      const description = await generatePropertyDescription(details);
+      res.json(description);
+    } catch (error) {
+      console.error('OpenAI API Error:', error);
+      res.status(500).json({ 
+        error: "Failed to generate description",
+        details: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+
+  app.post("/api/ai/pricing", async (req, res) => {
+    try {
+      const details = req.body;
+      const pricing = await analyzePricing(details);
+      res.json(pricing);
+    } catch (error) {
+      console.error('OpenAI API Error:', error);
+      res.status(500).json({ 
+        error: "Failed to analyze pricing",
+        details: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+
   return httpServer;
+}
+
+// Placeholder functions -  replace with actual implementations
+async function generatePropertyDescription(details: any): Promise<string> {
+  //Implementation to call OpenAI API and generate description
+  return "This is a sample property description";
+}
+
+async function analyzePricing(details: any): Promise<number> {
+  //Implementation to call OpenAI API and analyze pricing
+  return 1000;
 }
