@@ -1,0 +1,81 @@
+6:13:29 PM [express] GET /api/maintenance-requests/property/1 304 in 924ms :: []
+6:13:30 PM [express] GET /api/maintenance-requests/property/3 304 in 1151ms :: [{"_id":"67bde9e5169d…
+Starting property comparison...
+Sending request to Gemini API with prompt: Compare these properties:
+
+      Property: Taj Mahal
+      Type: villa
+      Location: Agra, Uttar Pradesh
+      Price: $2000
+      Bedrooms: 4
+      Bathrooms: 9
+      Square Footage: 25000
+    
+
+
+      Property: Qutub Minar
+      Type: house
+      Location: New Delhi, Delhi
+      Price: $2333
+      Bedrooms: 4
+      Bathrooms: 4
+      Square Footage: 20000
+    
+
+
+      Property: oughtaknothaaat
+      Type: house
+      Location: beabadoobee
+      Price: $2000
+      Bedrooms: 3
+      Bathrooms: 3
+      Square Footage: 2300
+    
+
+Provide analysis in this JSON format:
+{
+  "properties": {
+    "[property_id]": {
+      "pros": ["advantage1", "advantage2"],
+      "cons": ["consideration1", "consideration2"],
+      "bestFor": "ideal tenant description"
+    }
+  }
+}
+Gemini API Error: GoogleGenerativeAIFetchError: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent: [404 Not Found] models/gemini-1.0-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+    at handleResponseNotOk (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:420:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async makeRequest (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:393:9)
+    at async generateContent (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:840:22)
+    at async generateContent (/home/runner/workspace/server/gemini.ts:12:20)
+    at async compareProperties (/home/runner/workspace/server/gemini.ts:48:22)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:707:28) {
+  status: 404,
+  statusText: 'Not Found',
+  errorDetails: undefined
+}
+Property comparison error: GoogleGenerativeAIFetchError: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent: [404 Not Found] models/gemini-1.0-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+    at handleResponseNotOk (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:420:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async makeRequest (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:393:9)
+    at async generateContent (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:840:22)
+    at async generateContent (/home/runner/workspace/server/gemini.ts:12:20)
+    at async compareProperties (/home/runner/workspace/server/gemini.ts:48:22)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:707:28) {
+  status: 404,
+  statusText: 'Not Found',
+  errorDetails: undefined
+}
+Property comparison error: GoogleGenerativeAIFetchError: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro:generateContent: [404 Not Found] models/gemini-1.0-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+    at handleResponseNotOk (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:420:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async makeRequest (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:393:9)
+    at async generateContent (file:///home/runner/workspace/node_modules/@google/generative-ai/dist/index.mjs:840:22)
+    at async generateContent (/home/runner/workspace/server/gemini.ts:12:20)
+    at async compareProperties (/home/runner/workspace/server/gemini.ts:48:22)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:707:28) {
+  status: 404,
+  statusText: 'Not Found',
+  errorDetails: undefined
+}
+6:13:37 PM [express] POST /api/properties/compare 500 in 1057ms :: {"error":"Failed to compare prope…
