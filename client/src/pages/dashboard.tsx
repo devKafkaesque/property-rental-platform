@@ -6,7 +6,7 @@ import PropertyCard from "@/components/property-card";
 import PropertySearch from "@/components/property-search";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, LogOut, Link as LinkIcon } from "lucide-react";
+import { Loader2, LogOut, Link as LinkIcon, Building2 } from "lucide-react";
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import {
@@ -25,8 +25,6 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<PropertyCategory | "all">("all");
 
-  // For landowners, fetch their own properties
-  // For tenants, fetch all available properties
   const { data: properties, isLoading: propertiesLoading } = useQuery<Property[]>({
     queryKey: [user?.role === "landowner" ? `/api/properties/owner/${user?.id}` : "/api/properties"],
     enabled: !!user,
@@ -62,6 +60,14 @@ export default function Dashboard() {
             Welcome, {user.username}!
           </h1>
           <div className="flex items-center gap-4">
+            {/* Add Connections Link */}
+            <Link href="/connections">
+              <Button variant="outline">
+                <Building2 className="h-4 w-4 mr-2" />
+                Property Connections
+              </Button>
+            </Link>
+
             {user.role === "tenant" && (
               <Link href="/connect">
                 <Button variant="outline">
@@ -70,6 +76,7 @@ export default function Dashboard() {
                 </Button>
               </Link>
             )}
+
             <Button
               variant="outline"
               onClick={() => {
