@@ -851,6 +851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Get all properties owned by the landowner
       const properties = await storage.getPropertiesByOwner(req.user!.id);
+      console.log('Found landowner properties:', properties);
 
       // Get active tenant contracts for these properties
       const chatProperties = await Promise.all(
@@ -860,6 +861,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           if (activeContract) {
             const tenant = await storage.getUser(activeContract.tenantId);
+            console.log('Found active contract for property:', {
+              propertyId: property.id,
+              propertyName: property.name,
+              tenantId: activeContract.tenantId,
+              tenantName: tenant?.username
+            });
+
             return {
               id: property.id,
               name: property.name,
@@ -870,9 +878,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      // Filter out properties without active contracts      const activeProperties = chatProperties.filter(Boolean);
+      // Filter out null values and return active properties
+      const activeProperties = chatProperties.filter((prop): prop is NonNullable<typeof prop> => prop !== null);
 
-      log('Sending chat properties:', activeProperties);
+      console.log('Sending chat properties:', activeProperties);
       res.json(activeProperties);
     } catch (error) {
       console.error('Error fetching landowner chat properties:', error);
