@@ -15,6 +15,11 @@ export default function ConnectPage() {
 
   const connectMutation = useMutation({
     mutationFn: async (code: string) => {
+      // Validate code format before sending request
+      if (!/^[a-f0-9]{8}$/i.test(code)) {
+        throw new Error("Invalid connection code format. Code should be 8 characters long and contain only letters (a-f) and numbers.");
+      }
+
       const res = await apiRequest("POST", `/api/properties/connect/${code}`);
       if (!res.ok) {
         const errorData = await res.json();
@@ -41,7 +46,8 @@ export default function ConnectPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!code.trim()) {
+    const trimmedCode = code.trim();
+    if (!trimmedCode) {
       toast({
         title: "Error",
         description: "Please enter a connection code",
@@ -49,7 +55,7 @@ export default function ConnectPage() {
       });
       return;
     }
-    connectMutation.mutate(code);
+    connectMutation.mutate(trimmedCode);
   };
 
   return (
@@ -63,11 +69,17 @@ export default function ConnectPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Input
-                  placeholder="Enter connection code"
+                  placeholder="Enter 8-character connection code"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   disabled={connectMutation.isPending}
+                  maxLength={8}
+                  pattern="^[a-fA-F0-9]{8}$"
+                  title="Connection code should be 8 characters long and contain only letters (a-f) and numbers"
                 />
+                <p className="text-sm text-muted-foreground">
+                  Enter the 8-character code provided by your landlord
+                </p>
               </div>
               <Button
                 type="submit"
