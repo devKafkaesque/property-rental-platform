@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { Property, Booking, PropertyCategory } from "@shared/schema";
+import { Property, Booking, PropertyCategory, TenantContract } from "@shared/schema";
 import PropertyForm from "@/components/property-form";
 import PropertyCard from "@/components/property-card";
 import PropertySearch from "@/components/property-search";
@@ -30,14 +30,22 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
+  const { data: tenantContracts, isLoading: contractsLoading } = useQuery<TenantContract[]>({
+    queryKey: ["/api/tenant-contracts/tenant"],
+    enabled: !!user && user.role === "tenant",
+  });
+
   const { data: bookings, isLoading: bookingsLoading } = useQuery<Booking[]>({
     queryKey: ["/api/bookings/tenant"],
     enabled: user?.role === "tenant",
   });
 
   const filteredProperties = properties?.filter(property => {
-    // For tenants, only show available properties
-    if (user?.role === "tenant" && property.status !== "available") return false;
+    // For tenants, show available properties and properties they're connected to
+    if (user?.role === "tenant") {
+      const isConnected = tenantContracts?.some(contract => contract.propertyId === property.id);
+      if (!isConnected && property.status !== "available") return false;
+    }
 
     const matchesSearch = !searchQuery || (
       property.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -51,6 +59,8 @@ export default function Dashboard() {
   });
 
   if (!user) return null;
+
+  const isLoading = propertiesLoading || contractsLoading || bookingsLoading;
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -135,7 +145,7 @@ export default function Dashboard() {
             </>
           )}
 
-          {propertiesLoading ? (
+          {isLoading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin" />
             </div>
@@ -152,6 +162,9 @@ export default function Dashboard() {
                       key={property.id}
                       property={property}
                       isOwner={user.role === "landowner"}
+                      isConnected={tenantContracts?.some(
+                        contract => contract.propertyId === property.id
+                      )}
                     />
                   ))}
                 </div>

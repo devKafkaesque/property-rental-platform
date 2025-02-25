@@ -8,6 +8,7 @@ import PropertyConnectionCode from "./property-connection-code";
 interface PropertyCardProps {
   property: Property;
   isOwner?: boolean;
+  isConnected?: boolean;
 }
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
@@ -17,7 +18,7 @@ function getPropertyIcon(type: Property["type"], category: Property["category"])
   return Home;
 }
 
-export default function PropertyCard({ property, isOwner }: PropertyCardProps) {
+export default function PropertyCard({ property, isOwner, isConnected }: PropertyCardProps) {
   const PropertyIcon = getPropertyIcon(property.type, property.category);
 
   return (
@@ -36,8 +37,12 @@ export default function PropertyCard({ property, isOwner }: PropertyCardProps) {
               "text-green-700"}
           `} />
         </div>
-        <span className="absolute top-2 right-2 bg-background/90 text-foreground px-2 py-1 rounded-full text-sm">
-          {property.status}
+        <span className={`
+          absolute top-2 right-2 px-2 py-1 rounded-full text-sm
+          ${isConnected ? "bg-green-100 text-green-700" : 
+            "bg-background/90 text-foreground"}
+        `}>
+          {isConnected ? "Connected" : property.status}
         </span>
       </div>
 
@@ -73,7 +78,7 @@ export default function PropertyCard({ property, isOwner }: PropertyCardProps) {
       <CardFooter>
         <Link href={isOwner ? `/property/${property.id}/manage` : `/property/${property.id}`} className="w-full">
           <Button variant={isOwner ? "outline" : "default"} className="w-full">
-            {isOwner ? "Manage Property" : "View Details"}
+            {isOwner ? "Manage Property" : isConnected ? "View Details" : "View Property"}
           </Button>
         </Link>
       </CardFooter>
