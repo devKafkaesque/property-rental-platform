@@ -1,15 +1,61 @@
 import { Property } from "@shared/schema";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
-import { Home, Bed, Bath, Square, Wifi } from "lucide-react";
+import { Home, Bed, Bath, Square, Wifi, Trash2, LogOut } from "lucide-react";
 import { useLocation } from "wouter";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function PropertyListing() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const { data: user } = useQuery({ queryKey: ["/api/user"] });
   const { data: properties = [], isLoading } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
+  });
+
+  // Delete property mutation
+  const deletePropertyMutation = useMutation({
+    mutationFn: async (propertyId: number) => {
+      await apiRequest("DELETE", `/api/properties/${propertyId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
+      toast({
+        title: "Success",
+        description: "Property has been deleted.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete property",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Disconnect from property mutation
+  const disconnectPropertyMutation = useMutation({
+    mutationFn: async (propertyId: number) => {
+      await apiRequest("POST", `/api/properties/${propertyId}/disconnect`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/properties"] });
+      toast({
+        title: "Success",
+        description: "Successfully disconnected from property.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to disconnect from property",
+        variant: "destructive",
+      });
+    },
   });
 
   if (isLoading) {
@@ -102,13 +148,45 @@ export default function PropertyListing() {
                     </span>
                   )}
                 </div>
-                <Button 
-                  className="w-full mt-4"
-                  onClick={() => setLocation(`/properties/${property.id}`)}
-                  variant={(property.status || "available") === "available" ? "default" : "secondary"}
-                >
-                  View Details
-                </Button>
+                <div className="flex gap-2 mt-4">
+                  <Button 
+                    className="flex-1"
+                    onClick={() => setLocation(`/properties/${property.id}`)}
+                    variant={(property.status || "available") === "available" ? "default" : "secondary"}
+                  >
+                    View Details
+                  </Button>
+
+                  {/* Show delete button for landowners */}
+                  {user?.role === "landowner" && property.ownerId === user.id && (
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to delete this property?")) {
+                          deletePropertyMutation.mutate(property.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+
+                  {/* Show disconnect button for tenants */}
+                  {user?.role === "tenant" && property.status === "rented" && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to disconnect from this property?")) {
+                          disconnectPropertyMutation.mutate(property.id);
+                        }
+                      }}
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
