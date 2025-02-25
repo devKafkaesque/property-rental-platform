@@ -40,8 +40,8 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
       condition: "",
       category: "standard",
       images: [],
-      rentPrice: undefined, 
-      depositAmount: undefined, 
+      rentPrice: 0, 
+      depositAmount: 0, 
     },
   });
 
@@ -365,10 +365,12 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
                         placeholder="Enter monthly rent"
                         className="pl-9"
                         {...field}
+                        value={field.value || 0}
                         onChange={(e) => {
-                          field.onChange(e.target.valueAsNumber);
+                          const value = e.target.valueAsNumber || 0;
+                          field.onChange(value);
                           if (!form.getValues("depositAmount")) {
-                            form.setValue("depositAmount", e.target.valueAsNumber);
+                            form.setValue("depositAmount", value);
                           }
                         }}
                       />
@@ -393,7 +395,8 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
                         placeholder="Enter security deposit"
                         className="pl-9"
                         {...field}
-                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                        value={field.value || 0}
+                        onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
                       />
                     </div>
                   </FormControl>
