@@ -12,7 +12,23 @@ app.use(express.urlencoded({ extended: false }));
 // Add request logging middleware early in the chain
 app.use(requestLogger);
 
+// CORS and headers configuration for both HTTP and WebSocket
 app.use((req, res, next) => {
+  const origin = req.headers.origin || '*';
+
+  // Allow WebSocket upgrade requests and CORS
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+  // Handle WebSocket upgrade requests
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Max-Age', '1728000');
+    res.status(204).end();
+    return;
+  }
+
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
@@ -53,11 +69,11 @@ app.use((req, res, next) => {
     setupWebSocketServer(server);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      console.error('Error in request:', err);
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";
 
       res.status(status).json({ message });
-      throw err;
     });
 
     if (app.get("env") === "development") {

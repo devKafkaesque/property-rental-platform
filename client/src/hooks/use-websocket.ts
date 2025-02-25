@@ -8,7 +8,7 @@ interface ChatMessage {
   username: string;
   content: string;
   propertyId: number;
-  timestamp: number;
+  timestamp: number | string;
   messages?: ChatMessage[]; // For history type
 }
 
@@ -29,90 +29,100 @@ export function useWebSocket(propertyId: number) {
       wsRef.current = null;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/chat`;
+    try {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
+      const wsUrl = `${protocol}//${host}/ws/chat`;
 
-    console.log('Connecting to WebSocket at:', wsUrl);
+      console.log('Attempting WebSocket connection to:', wsUrl);
 
-    // Use native WebSocket to ensure cookie passing
-    const ws = new WebSocket(wsUrl);
+      const ws = new WebSocket(wsUrl);
 
-    ws.onopen = () => {
-      console.log('WebSocket Connected');
-      reconnectAttempts.current = 0;
-      ws.send(
-        JSON.stringify({
+      ws.onopen = () => {
+        console.log('WebSocket connection established');
+        reconnectAttempts.current = 0;
+
+        // Send join message
+        ws.send(JSON.stringify({
           type: 'join',
           userId: user.id,
           username: user.username,
           role: user.role,
           propertyId,
           content: '',
-          timestamp: Date.now(),
-        })
-      );
-    };
+          timestamp: Date.now()
+        }));
+      };
 
-    ws.onmessage = (event) => {
-      try {
-        const data = event.data;
-        const message = typeof data === 'string' ? JSON.parse(data) : data;
+      ws.onmessage = (event) => {
+        try {
+          const data = event.data;
+          const message = typeof data === 'string' ? JSON.parse(data) : data;
+          console.log('Received message:', message);
 
-        if (!message || !message.type) {
-          console.warn('Received invalid message format:', message);
-          return;
-        }
+          if (!message || !message.type) {
+            console.warn('Received invalid message format:', message);
+            return;
+          }
 
-        console.log('Received message:', message);
-
-        // Post message to window event system if it's relevant to this property
-        if (message.propertyId === propertyId || message.type === 'history') {
+          // Post message to window event system
           window.postMessage(message, window.location.origin);
+        } catch (error) {
+          console.error('Error handling WebSocket message:', error);
         }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
+      };
 
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+
+      ws.onclose = (event) => {
+        console.log('WebSocket connection closed:', event.code, event.reason);
+        wsRef.current = null;
+
+        if (reconnectAttempts.current < maxReconnectAttempts) {
+          reconnectAttempts.current += 1;
+          console.log(`Attempting reconnection ${reconnectAttempts.current}/${maxReconnectAttempts}`);
+
+          // Clear any existing reconnection timeout
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+          }
+
+          // Exponential backoff with jitter
+          const backoffTime = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 10000);
+          const jitter = Math.random() * 1000;
+          const delay = backoffTime + jitter;
+
+          reconnectTimeoutRef.current = setTimeout(() => {
+            if (wsRef.current === null) {
+              connect();
+            }
+          }, delay);
+        } else {
+          console.log('Maximum reconnection attempts reached');
+          toast({
+            title: 'Connection Lost',
+            description: 'Unable to connect to chat. Please refresh the page.',
+            variant: 'destructive'
+          });
+        }
+      };
+
+      // Enable ping/pong
+      ws.addEventListener('ping', () => {
+        ws.pong();
+      });
+
+      wsRef.current = ws;
+    } catch (error) {
+      console.error('Error creating WebSocket connection:', error);
       toast({
         title: 'Connection Error',
-        description: 'Failed to connect to chat server',
-        variant: 'destructive',
+        description: 'Failed to establish chat connection. Please try again.',
+        variant: 'destructive'
       });
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket Disconnected');
-      wsRef.current = null;
-
-      if (reconnectAttempts.current < maxReconnectAttempts) {
-        reconnectAttempts.current += 1;
-        console.log(`Reconnecting attempt ${reconnectAttempts.current}/${maxReconnectAttempts}...`);
-
-        // Clear any existing reconnection timeout
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
-        }
-
-        // Set new reconnection timeout with exponential backoff
-        reconnectTimeoutRef.current = setTimeout(() => {
-          if (wsRef.current === null) { // Only reconnect if still disconnected
-            connect();
-          }
-        }, 5000 * Math.min(reconnectAttempts.current, 3)); // Exponential backoff up to 15s
-      } else {
-        console.log('Max reconnect attempts reached. Giving up.');
-        toast({
-          title: 'Chat Disconnected',
-          description: 'Unable to reconnect to the chat server.',
-          variant: 'destructive',
-        });
-      }
-    };
-
-    wsRef.current = ws;
+    }
 
     return () => {
       // Clear any pending reconnection attempt
@@ -120,17 +130,16 @@ export function useWebSocket(propertyId: number) {
         clearTimeout(reconnectTimeoutRef.current);
       }
 
+      // Send leave message and close connection
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(
-          JSON.stringify({
-            type: 'leave',
-            userId: user.id,
-            username: user.username,
-            propertyId,
-            content: '',
-            timestamp: Date.now(),
-          })
-        );
+        wsRef.current.send(JSON.stringify({
+          type: 'leave',
+          userId: user.id,
+          username: user.username,
+          propertyId,
+          content: '',
+          timestamp: Date.now()
+        }));
         wsRef.current.close();
       }
     };
@@ -143,27 +152,33 @@ export function useWebSocket(propertyId: number) {
     };
   }, [connect]);
 
-  const sendMessage = useCallback(
-    (content: string, type: 'message' | 'delete' = 'message', timestamp?: number | string) => {
-      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !user || !propertyId) {
-        console.warn('Cannot send message: WebSocket not connected or missing user/propertyId');
-        return;
-      }
+  const sendMessage = useCallback((content: string, type: 'message' | 'delete' = 'message', timestamp?: number | string) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !user || !propertyId) {
+      console.warn('Cannot send message: WebSocket not connected or missing user/propertyId');
+      return;
+    }
 
+    try {
       const message: ChatMessage = {
         type,
         userId: user.id,
         username: user.username,
         content,
         propertyId,
-        timestamp: timestamp ? Number(new Date(timestamp)) : Date.now(),
+        timestamp: timestamp || Date.now()
       };
 
       console.log('Sending message:', message);
       wsRef.current.send(JSON.stringify(message));
-    },
-    [user, propertyId]
-  );
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to send message. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  }, [user, propertyId, toast]);
 
   return { sendMessage };
 }
