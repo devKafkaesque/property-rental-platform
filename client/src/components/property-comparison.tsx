@@ -6,7 +6,8 @@ import {
   DialogContent,
   DialogTitle,
   DialogHeader,
-  DialogDescription
+  DialogDescription,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,13 +57,21 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
   });
 
   const selectedProperties = properties?.filter(p => propertyIds.includes(p.id)) || [];
+  const dialogTitleId = "property-comparison-title";
+  const dialogDescriptionId = "property-comparison-description";
 
   return (
-    <Dialog open={open} onOpenChange={() => onClose()}>
-      <DialogContent>
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent 
+        className="max-w-6xl max-h-[90vh] overflow-y-auto"
+        aria-labelledby={dialogTitleId}
+        aria-describedby={dialogDescriptionId}
+      >
         <DialogHeader>
-          <DialogTitle>Property Comparison</DialogTitle>
-          <DialogDescription>
+          <DialogTitle id={dialogTitleId}>
+            Property Comparison
+          </DialogTitle>
+          <DialogDescription id={dialogDescriptionId}>
             {isLoading ? "Loading property comparison..." : "Compare selected properties to make an informed decision"}
           </DialogDescription>
         </DialogHeader>
@@ -163,6 +172,12 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
             </div>
           </div>
         )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
