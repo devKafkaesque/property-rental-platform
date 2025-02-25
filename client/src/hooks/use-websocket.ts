@@ -64,8 +64,6 @@ export function useWebSocket(propertyId: number) {
             return;
           }
 
-          console.log('Received message:', message);
-
           // Post message to window event system
           window.postMessage(message, window.location.origin);
         } catch (error) {
@@ -115,7 +113,7 @@ export function useWebSocket(propertyId: number) {
       console.error('Error creating WebSocket connection:', error);
       toast({
         title: 'Connection Error',
-        description: 'Failed to establish chat connection. Please try again.',
+        description: 'Failed to establish chat connection',
         variant: 'destructive'
       });
     }
