@@ -17,6 +17,7 @@ import express from "express";
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import { generatePropertyDescription, analyzePricing } from "./openai";
+import { compareProperties } from "./gemini";  // Update import to use Gemini instead of openai/xai
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -664,48 +665,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/users/:id", ensureAuthenticated, async (req, res) => {
+  // Add route to handle deposit return status
+  app.post("/api/properties/:id/handle-deposit", ensureLandowner, async (req, res) => {
     try {
-      const userId = Number(req.params.id);
+      const propertyId = Number(req.params.id);
+      const { contractId, status } = req.body;
 
-      // Users can only delete their own account
-      if (userId !== req.user!.id) {
-        return res.status(403).json({ error: "Not authorized to delete this user" });
+      if (!["approved", "rejected"].includes(status)) {
+        return res.status(400).json({ error: "Invalid deposit return status" });
       }
 
-      // If user is a landowner, check if they have any active properties
-      if (req.user!.role === "landowner") {
-        const properties = await storage.getPropertiesByOwner(userId);
-        const activeProperties = properties.filter(p => p.status === "rented");
-
-        if (activeProperties.length > 0) {
-          return res.status(400).json({
-            error: "Cannot delete account while having active property rentals. Please end all rentals first."
-          });
-        }
+      const contract = await storage.getTenantContractById(contractId);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
       }
 
-      // If user is a tenant, check if they have any active contracts
-      if (req.user!.role === "tenant") {
-        const contracts = await storage.getTenantContractsByTenant(userId);
-        const activeContracts = contracts.filter(c => c.contractStatus === "active");
-
-        if (activeContracts.length > 0) {
-          return res.status(400).json({
-            error: "Cannot delete account while having active rentals. Please end all rentals first."
-          });
-        }
+      if (contract.propertyId !== propertyId) {
+        return res.status(400).json({ error: "Contract does not match property" });
       }
 
-      await storage.deleteUser(userId);
-
-      // Logout the user after deletion
-      req.logout(() => {
-        res.json({ success: true });
+      await storage.updateTenantContract(contractId, {
+        depositReturnStatus: status,
+        updatedAt: new Date()
       });
+
+      res.json({ success: true });
     } catch (error) {
-      console.error('Error deleting user:', error);
-      res.status(500).json({ error: "Failed to delete user" });
+      console.error('Error handling deposit return:', error);
+      res.status(500).json({ error: "Failed to handle deposit return" });
     }
   });
 
@@ -738,7 +725,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add this new route for deposit requests
+  // Update the comparison route to use Gemini
+  app.post("/api/properties/compare", ensureAuthenticated, async (req, res) => {
+    try {
+      const { propertyIds } = req.body;
+
+      if (!Array.isArray(propertyIds) || propertyIds.length < 2) {
+        return res.status(400).json({ error: "Please provide at least 2 property IDs to compare" });
+      }
+
+      const properties = await Promise.all(
+        propertyIds.map(id => storage.getPropertyById(Number(id)))
+      );
+
+      if (properties.some(p => !p)) {
+        return res.status(404).json({ error: "One or more properties not found" });
+      }
+
+      const comparison = await compareProperties(properties);
+      res.json(comparison);
+    } catch (error) {
+      console.error('Property comparison error:', error);
+      res.status(500).json({ error: "Failed to compare properties" });
+    }
+  });
+
   app.post("/api/properties/:id/request-deposit", ensureAuthenticated, async (req, res) => {
     try {
       const propertyId = Number(req.params.id);
@@ -773,7 +784,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update the disconnect-tenant route to check for deposit status
   app.post("/api/properties/:id/disconnect-tenant", ensureLandowner, async (req, res) => {
     try {
       const propertyId = Number(req.params.id);
@@ -833,34 +843,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add route to handle deposit return status
-  app.post("/api/properties/:id/handle-deposit", ensureLandowner, async (req, res) => {
+  app.delete("/api/users/:id", ensureAuthenticated, async (req, res) => {
     try {
-      const propertyId = Number(req.params.id);
-      const { contractId, status } = req.body;
+      const userId = Number(req.params.id);
 
-      if (!["approved", "rejected"].includes(status)) {
-        return res.status(400).json({ error: "Invalid deposit return status" });
+      // Users can only delete their own account
+      if (userId !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized to delete this user" });
       }
 
-      const contract = await storage.getTenantContractById(contractId);
-      if (!contract) {
-        return res.status(404).json({ error: "Contract not found" });
+      // If user is a landowner, check if they have any active properties
+      if (req.user!.role === "landowner") {
+        const properties = await storage.getPropertiesByOwner(userId);
+        const activeProperties = properties.filter(p => p.status === "rented");
+
+        if (activeProperties.length > 0) {
+          return res.status(400).json({
+            error: "Cannot delete account while having active property rentals. Please end all rentals first."
+          });
+        }
       }
 
-      if (contract.propertyId !== propertyId) {
-        return res.status(400).json({ error: "Contract does not match property" });
+      // If user is a tenant, check if they have any active contracts
+      if (req.user!.role === "tenant") {
+        const contracts = await storage.getTenantContractsByTenant(userId);
+        const activeContracts = contracts.filter(c => c.contractStatus === "active");
+
+        if (activeContracts.length > 0) {
+          return res.status(400).json({
+            error: "Cannot delete account while having active rentals. Please end all rentals first."
+          });
+        }
       }
 
-      await storage.updateTenantContract(contractId, {
-        depositReturnStatus: status,
-        updatedAt: new Date()
+      await storage.deleteUser(userId);
+
+      // Logout the user after deletion
+      req.logout(() => {
+        res.json({ success: true });
       });
-
-      res.json({ success: true });
     } catch (error) {
-      console.error('Error handling deposit return:', error);
-      res.status(500).json({ error: "Failed to handle deposit return" });
+      console.error('Error deleting user:', error);
+      res.status(500).json({ error: "Failed to delete user" });
     }
   });
 
