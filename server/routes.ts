@@ -126,7 +126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Set explicit headers and return JSON response
       res.setHeader('Content-Type', 'application/json');
-      return res.status(200).json({
+      return res.json({
         connectionCode: connectionCode,
         success: true
       });
