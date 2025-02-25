@@ -386,19 +386,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       let property = null;
-      const propertyId = Number(req.params.code);
+      const code = req.params.code;
 
-      if (!isNaN(propertyId)) {
-        property = await storage.getPropertyById(propertyId);
+      //Improved validation: Check if code is a valid hex string of length 8.
+      if (!/^[a-f0-9]{8}$/i.test(code)) {
+        return res.status(400).json({ error: "Invalid connection code format" });
       }
 
-      if (!property) {
-        const allProperties = await storage.getProperties();
-        property = allProperties.find(p => p.connectionCode === req.params.code);
-      }
+
+      const properties = await storage.getProperties();
+      property = properties.find(p => p.connectionCode === code);
+
 
       if (!property) {
-        console.log('No property found for code:', req.params.code);
+        console.log('No property found for code:', code);
         return res.status(404).json({ error: "Invalid connection code" });
       }
 
@@ -420,6 +421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contractStatus: "active"
       });
 
+      // Only clear the connection code after a successful connection
       await storage.updateProperty(property.id, {
         status: "rented",
         connectionCode: null,
