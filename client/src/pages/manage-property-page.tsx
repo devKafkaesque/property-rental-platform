@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Home, Hotel, Castle, Loader2, ArrowLeft, Edit2, X, Upload, BedDouble, Bath, Ruler, DollarSign, MapPin, Wifi, CheckCircle2 } from "lucide-react";
+import { Building2, Home, Hotel, Castle, Loader2, ArrowLeft, Edit2, X, Upload, BedDouble, Bath, Ruler, DollarSign, MapPin, Wifi, CheckCircle2, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -112,10 +112,39 @@ export default function ManagePropertyPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
           </Button>
-          <Button onClick={() => setIsEditing(true)}>
-            <Edit2 className="h-4 w-4 mr-2" />
-            Edit Property
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setIsEditing(true)}>
+              <Edit2 className="h-4 w-4 mr-2" />
+              Edit Property
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (window.confirm("Are you sure you want to delete this property? This action cannot be undone.")) {
+                  const deleteProperty = async () => {
+                    try {
+                      await apiRequest("DELETE", `/api/properties/${id}`);
+                      toast({
+                        title: "Success",
+                        description: "Property has been deleted successfully.",
+                      });
+                      setLocation("/dashboard");
+                    } catch (error) {
+                      toast({
+                        title: "Error",
+                        description: "Failed to delete property. Make sure there are no active rentals.",
+                        variant: "destructive",
+                      });
+                    }
+                  };
+                  deleteProperty();
+                }
+              }}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Property
+            </Button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-8">
@@ -399,7 +428,7 @@ export default function ManagePropertyPage() {
 
                     <div className="space-y-4">
                       <FormLabel>Property Images</FormLabel>
-                      
+
                       {property.images && property.images.length > 0 && (
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                           {property.images.map((imageUrl, index) => (
