@@ -13,11 +13,15 @@ interface ViewingRequestManagementProps {
   isOwner?: boolean;
 }
 
+interface ViewingRequestWithTenant extends ViewingRequest {
+  tenantName: string;
+}
+
 export default function ViewingRequestManagement({ propertyId, isOwner }: ViewingRequestManagementProps) {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const { data: requests = [], isLoading } = useQuery<ViewingRequest[]>({
+  const { data: requests = [], isLoading } = useQuery<ViewingRequestWithTenant[]>({
     queryKey: [isOwner ? `/api/viewing-requests/property/${propertyId}` : `/api/viewing-requests/tenant`],
     enabled: !!user,
   });
@@ -65,9 +69,16 @@ export default function ViewingRequestManagement({ propertyId, isOwner }: Viewin
         <Card key={request.id}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">
-                Requested for {format(new Date(request.preferredDate), "PPP")}
-              </p>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  Requested for {format(new Date(request.preferredDate), "PPP")}
+                </p>
+                {isOwner && (
+                  <p className="text-sm font-medium mt-1">
+                    Tenant: {request.tenantName}
+                  </p>
+                )}
+              </div>
               <span className={`
                 px-2 py-1 rounded-full text-sm font-medium
                 ${request.status === "completed" ? "bg-green-100 text-green-800" :

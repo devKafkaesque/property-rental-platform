@@ -309,7 +309,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/viewing-requests/property/:id", ensureLandowner, async (req, res) => {
     try {
       const requests = await storage.getViewingRequestsByProperty(Number(req.params.id));
-      res.json(requests);
+      // Fetch tenant details for each request
+      const requestsWithTenants = await Promise.all(requests.map(async request => {
+        const tenant = await storage.getUser(request.tenantId);
+        return {
+          ...request,
+          tenantName: tenant?.username || 'Unknown User'
+        };
+      }));
+      res.json(requestsWithTenants);
     } catch (error) {
       console.error('Error fetching property viewing requests:', error);
       res.status(500).json({ error: "Failed to fetch viewing requests" });
