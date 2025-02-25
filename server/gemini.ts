@@ -21,6 +21,12 @@ async function generateContent(prompt: string) {
 export async function compareProperties(properties: Property[]) {
   try {
     console.log('Starting property comparison...');
+    // Create a mapping of property IDs to their details
+    const propertyMap = properties.reduce((acc, p) => ({
+      ...acc,
+      [p.id]: p
+    }), {} as Record<number, Property>);
+
     const propertyDescriptions = properties.map(p => `
       ID: ${p.id}
       Property: ${p.name}
@@ -32,39 +38,49 @@ export async function compareProperties(properties: Property[]) {
       Square Footage: ${p.squareFootage}
     `).join('\n\n');
 
-    const prompt = `Compare these properties and return a JSON object where the property ID is used as the key (no markdown, no code blocks):\n${propertyDescriptions}\n\n` +
-      'Return properties analysis as JSON, using the numeric ID as the key:\n' +
+    const prompt = `Analyze these properties and return a JSON object using the numeric ID as the key:\n${propertyDescriptions}\n\n` +
+      'The response must be a valid JSON object with this exact structure:\n' +
       '{\n' +
       '  "properties": {\n' +
-      '    "1": {\n' + // Example using numeric ID
+      '    "ID_NUMBER": {\n' +
       '      "pros": ["advantage1", "advantage2"],\n' +
       '      "cons": ["consideration1", "consideration2"],\n' +
       '      "bestFor": "ideal tenant description"\n' +
       '    }\n' +
       '  }\n' +
-      '}';
+      '}\n\n' +
+      'Replace ID_NUMBER with the actual property ID from the input. Use only the numeric IDs as keys.';
 
     const response = await generateContent(prompt);
 
     try {
-      const parsed = JSON.parse(response);
-      // Ensure the response uses correct property IDs
-      if (!parsed.properties || Object.keys(parsed.properties).some(key => isNaN(Number(key)))) {
-        // If the response doesn't use numeric IDs, restructure it
-        return {
-          properties: properties.reduce((acc, p) => ({
-            ...acc,
-            [p.id]: {
-              pros: ["Good location", "Well maintained"],
-              cons: ["Standard market rates"],
-              bestFor: "Various tenant profiles"
-            }
-          }), {})
-        };
+      let parsed = JSON.parse(response);
+
+      // Ensure we have valid property IDs
+      if (!parsed.properties || typeof parsed.properties !== 'object') {
+        throw new Error('Invalid response format');
       }
-      return parsed;
+
+      // Convert any string IDs to numbers and validate the structure
+      const validatedProperties = Object.entries(parsed.properties).reduce((acc, [key, value]) => {
+        const id = Number(key);
+        if (isNaN(id) || !propertyMap[id]) {
+          return acc;
+        }
+        return {
+          ...acc,
+          [id]: {
+            pros: Array.isArray(value.pros) ? value.pros : ["Good location"],
+            cons: Array.isArray(value.cons) ? value.cons : ["Standard rates"],
+            bestFor: typeof value.bestFor === 'string' ? value.bestFor : "Various tenant profiles"
+          }
+        };
+      }, {});
+
+      return { properties: validatedProperties };
     } catch (error) {
       console.error('Error parsing comparison response:', error);
+      // Return a fallback response with valid property IDs
       return {
         properties: properties.reduce((acc, p) => ({
           ...acc,
