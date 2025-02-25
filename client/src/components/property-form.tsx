@@ -65,7 +65,6 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
     });
   };
 
-
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
@@ -107,11 +106,23 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
   const createPropertyMutation = useMutation({
     mutationFn: async (data: any) => {
       try {
-        console.log('Submitting property data:', data); 
+        console.log('Form data before submission:', data);
+
+        if (!data.name || !data.description || !data.address) {
+          throw new Error("Please fill in all required fields");
+        }
+
+        if (data.rentPrice <= 0) {
+          throw new Error("Rent price must be greater than 0");
+        }
+
+        if (data.depositAmount <= 0) {
+          throw new Error("Deposit amount must be greater than 0");
+        }
 
         let imageUrls: string[] = [];
         if (selectedImages.length > 0) {
-          console.log('Uploading images...'); 
+          console.log('Uploading images...');
           imageUrls = await uploadImages();
         }
 
@@ -122,7 +133,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
           depositAmount: Number(data.depositAmount),
         };
 
-        console.log('Final property data:', propertyData); 
+        console.log('Final property data:', propertyData);
 
         const res = await apiRequest("POST", "/api/properties", propertyData);
         if (!res.ok) {
@@ -131,7 +142,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
         }
         return res.json();
       } catch (error) {
-        console.error('Property creation error:', error); 
+        console.error('Property creation error:', error);
         toast({
           title: "Error",
           description: error instanceof Error ? error.message : "Failed to create property",
@@ -167,7 +178,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
       <Form {...form}>
         <form
           onSubmit={form.handleSubmit((data) => {
-            console.log('Form submitted with data:', data); 
+            console.log('Form submitted with data:', data);
             createPropertyMutation.mutate(data);
           })}
           className="space-y-4 mt-6"
@@ -177,9 +188,13 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
             name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Property Name</FormLabel>
+                <FormLabel>Property Name *</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter property name" {...field} />
+                  <Input 
+                    placeholder="Enter property name" 
+                    {...field} 
+                    required
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -191,12 +206,13 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
             name="description"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Description</FormLabel>
+                <FormLabel>Description *</FormLabel>
                 <FormControl>
                   <Textarea
                     placeholder="Describe your property"
                     className="min-h-[100px]"
                     {...field}
+                    required
                   />
                 </FormControl>
                 <FormMessage />
@@ -209,9 +225,13 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
             name="address"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Address</FormLabel>
+                <FormLabel>Address *</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter property address" {...field} />
+                  <Input 
+                    placeholder="Enter property address" 
+                    {...field}
+                    required
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -371,7 +391,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
               name="rentPrice"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Monthly Rent (USD)</FormLabel>
+                  <FormLabel>Monthly Rent (USD) *</FormLabel>
                   <FormControl>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -380,7 +400,9 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
                         placeholder="Enter monthly rent"
                         className="pl-9"
                         {...field}
-                        value={field.value || 0}
+                        required
+                        min="1"
+                        value={field.value || ""}
                         onChange={(e) => {
                           const value = e.target.valueAsNumber || 0;
                           field.onChange(value);
@@ -401,7 +423,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
               name="depositAmount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Security Deposit (USD)</FormLabel>
+                  <FormLabel>Security Deposit (USD) *</FormLabel>
                   <FormControl>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -410,7 +432,9 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
                         placeholder="Enter security deposit"
                         className="pl-9"
                         {...field}
-                        value={field.value || 0}
+                        required
+                        min="1"
+                        value={field.value || ""}
                         onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
                       />
                     </div>
