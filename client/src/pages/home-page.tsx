@@ -16,6 +16,9 @@ export default function HomePage() {
   const [selectedCategory, setSelectedCategory] = useState<PropertyCategory | "all">("all");
 
   const filteredProperties = properties?.filter(property => {
+    // Only show available properties
+    if (property.status !== "available") return false;
+
     const matchesSearch = !searchQuery || (
       property.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       property.address.toLowerCase().includes(searchQuery.toLowerCase()) ||

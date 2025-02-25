@@ -25,6 +25,8 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<PropertyCategory | "all">("all");
 
+  // For landowners, fetch their own properties
+  // For tenants, fetch all available properties
   const { data: properties, isLoading: propertiesLoading } = useQuery<Property[]>({
     queryKey: [user?.role === "landowner" ? `/api/properties/owner/${user?.id}` : "/api/properties"],
     enabled: !!user,
@@ -36,6 +38,9 @@ export default function Dashboard() {
   });
 
   const filteredProperties = properties?.filter(property => {
+    // For tenants, only show available properties
+    if (user?.role === "tenant" && property.status !== "available") return false;
+
     const matchesSearch = !searchQuery || (
       property.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       property.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
