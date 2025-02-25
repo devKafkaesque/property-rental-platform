@@ -48,6 +48,7 @@ const propertySchema = new Schema({
   maintainanceHistory: { type: [Object], default: [] },
   rentPrice: { type: Number, required: true },
   depositAmount: { type: Number, required: true },
+  connectionCode: { type: String, default: null }, // Added connectionCode field
 });
 
 // Booking Schema
