@@ -18,10 +18,22 @@ export function ChatContainer() {
   const [, setLocation] = useLocation();
 
   // Fetch available properties for chat based on user role
-  const { data: chatProperties = [] } = useQuery<ChatProperty[]>({
-    queryKey: [user?.role === 'landowner' ? '/api/properties/owner/chats' : '/api/properties/tenant/chats'],
+  const { data: chatProperties = [], isLoading } = useQuery<ChatProperty[]>({
+    queryKey: [`/api/properties/${user?.role === 'landowner' ? 'owner' : 'tenant'}/chats`],
     enabled: !!user,
   });
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="grid grid-cols-4 gap-4 h-[600px]">
+          <div className="border rounded-lg p-4">
+            Loading properties...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-6">
