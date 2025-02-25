@@ -1,14 +1,7 @@
 import { useState } from "react";
 import { Property } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Star, AlertCircle, Loader2 } from "lucide-react";
@@ -38,23 +31,17 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[900px] h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Property Comparison</DialogTitle>
-          <DialogDescription>
-            Compare features and insights for selected properties
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent>
+        <DialogTitle>Property Comparison</DialogTitle>
 
         {isLoading ? (
           <div className="flex justify-center items-center p-8">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             {selectedProperties.map(property => {
               const analysis = comparison?.properties?.[property.id];
-
               return (
                 <Card key={property.id}>
                   <CardHeader>
@@ -62,7 +49,7 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
                     <p className="text-sm text-muted-foreground">{property.address}</p>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-6">
+                    <div className="space-y-4">
                       <div className="grid grid-cols-3 gap-2 text-sm">
                         <div>
                           <p className="font-medium">Beds</p>
@@ -121,11 +108,9 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
           </div>
         )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
+        <Button variant="outline" onClick={onClose} className="mt-4">
+          Close
+        </Button>
       </DialogContent>
     </Dialog>
   );
