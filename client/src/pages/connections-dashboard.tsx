@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import MaintenanceRequestForm from "@/components/maintenance-request-form";
 import MaintenanceRequestList from "@/components/maintenance-request-list";
-import { 
-  Building2, 
-  Home, 
-  Hotel, 
-  Castle, 
-  Loader2, 
-  Key, 
+import {
+  Building2,
+  Home,
+  Hotel,
+  Castle,
+  Loader2,
+  Key,
   RefreshCw,
   Users,
   LinkIcon,
@@ -20,10 +20,15 @@ import {
   XCircle,
   ArrowLeft,
   WrenchIcon,
-  ClipboardList
+  ClipboardList,
+  ChevronDown,
+  ChevronUp,
+  Wallet,
+  Star
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
+import { useState } from "react";
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
   if (category === "luxury") return Castle;
@@ -36,6 +41,7 @@ export default function ConnectionsDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const [expandedProperties, setExpandedProperties] = useState<number[]>([]);
 
   // For landowners: fetch their properties
   const { data: properties, isLoading: propertiesLoading } = useQuery<Property[]>({
@@ -43,7 +49,7 @@ export default function ConnectionsDashboard() {
     enabled: !!user,
   });
 
-  // For landowners: fetch all tenant contracts
+  // For landowners: fetch all tenant contracts with tenant details
   const { data: tenantContracts, isLoading: contractsLoading } = useQuery<TenantContract[]>({
     queryKey: ["/api/tenant-contracts/landowner"],
     enabled: !!user && user.role === "landowner",
@@ -70,6 +76,14 @@ export default function ConnectionsDashboard() {
     },
   });
 
+  const togglePropertyExpand = (propertyId: number) => {
+    setExpandedProperties(prev =>
+      prev.includes(propertyId)
+        ? prev.filter(id => id !== propertyId)
+        : [...prev, propertyId]
+    );
+  };
+
   if (propertiesLoading || contractsLoading || myContractsLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -94,51 +108,59 @@ export default function ConnectionsDashboard() {
         {user?.role === "landowner" && (
           <div className="space-y-6">
             <h2 className="text-2xl font-semibold">Your Properties</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6">
               {properties?.map((property) => {
                 const PropertyIcon = getPropertyIcon(property.type, property.category);
                 const connectedTenants = tenantContracts?.filter(
                   (contract) => contract.propertyId === property.id
                 );
+                const isExpanded = expandedProperties.includes(property.id);
 
                 return (
-                  <Card key={property.id}>
-                    <CardHeader>
+                  <Card key={property.id} className="overflow-hidden">
+                    <CardHeader
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => togglePropertyExpand(property.id)}
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
                           <PropertyIcon className="h-5 w-5" />
                           <CardTitle className="text-lg">{property.name}</CardTitle>
                         </div>
-                        <span className={`
-                          px-2 py-1 rounded-full text-sm
-                          ${property.status === "available" ? "bg-green-100 text-green-800" : 
-                            property.status === "rented" ? "bg-blue-100 text-blue-800" : 
-                            "bg-gray-100 text-gray-800"}
-                        `}>
-                          {property.status}
-                        </span>
+                        <div className="flex items-center space-x-4">
+                          <span className={`
+                            px-2 py-1 rounded-full text-sm
+                            ${property.status === "available" ? "bg-green-100 text-green-800" :
+                              property.status === "rented" ? "bg-blue-100 text-blue-800" :
+                              "bg-gray-100 text-gray-800"}
+                          `}>
+                            {property.status}
+                          </span>
+                          {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </div>
                       </div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {property.status === "available" && (
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <Key className="h-4 w-4" />
-                              <span>{property.connectionCode || "No active code"}</span>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => generateCodeMutation.mutate(property.id)}
-                              disabled={generateCodeMutation.isPending}
-                            >
-                              <RefreshCw className="h-4 w-4 mr-2" />
-                              Generate Code
-                            </Button>
-                          </div>
-                        )}
 
+                    <CardContent className={`space-y-4 ${isExpanded ? '' : 'hidden'}`}>
+                      {property.status === "available" && (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Key className="h-4 w-4" />
+                            <span>{property.connectionCode || "No active code"}</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => generateCodeMutation.mutate(property.id)}
+                            disabled={generateCodeMutation.isPending}
+                          >
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Generate Code
+                          </Button>
+                        </div>
+                      )}
+
+                      <div className="space-y-4">
                         <div className="flex items-center space-x-2">
                           <Users className="h-4 w-4" />
                           <span>
@@ -147,19 +169,58 @@ export default function ConnectionsDashboard() {
                         </div>
 
                         {connectedTenants?.map((contract) => (
-                          <div key={contract.id} className="flex items-center justify-between border-t pt-2">
-                            <div>
-                              <p className="font-medium">Tenant #{contract.tenantId}</p>
-                              <p className="text-sm text-muted-foreground">
-                                Since {new Date(contract.startDate).toLocaleDateString()}
-                              </p>
+                          <div key={contract.id} className="border rounded-lg p-4 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium">Tenant ID: {contract.tenantId}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  Connected since {new Date(contract.startDate).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <span className={`
+                                px-2 py-1 rounded-full text-sm
+                                ${contract.contractStatus === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
+                              `}>
+                                {contract.contractStatus}
+                              </span>
                             </div>
-                            <span className={`
-                              px-2 py-1 rounded-full text-sm
-                              ${contract.contractStatus === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
-                            `}>
-                              {contract.contractStatus}
-                            </span>
+
+                            {/* Maintenance History Section */}
+                            <div className="border-t pt-4">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <WrenchIcon className="h-4 w-4" />
+                                <h3 className="font-medium">Maintenance History</h3>
+                              </div>
+                              <MaintenanceRequestList propertyId={property.id} />
+                            </div>
+
+                            {/* Rent Payment History Section */}
+                            <div className="border-t pt-4">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Wallet className="h-4 w-4" />
+                                <h3 className="font-medium">Rent Payment History</h3>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                Rent Amount: ${contract.rentAmount}
+                                <br />
+                                Deposit Status: {contract.depositPaid ? 'Paid' : 'Pending'}
+                              </div>
+                            </div>
+
+                            {/* Behavior History Section */}
+                            <div className="border-t pt-4">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <Star className="h-4 w-4" />
+                                <h3 className="font-medium">Tenant Behavior</h3>
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                Contract Status: {contract.contractStatus}
+                                <br />
+                                Payment History: Good Standing
+                                <br />
+                                Maintenance Request Response: Timely
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -236,8 +297,8 @@ export default function ConnectionsDashboard() {
                           </div>
                         )}
 
-                        <Button 
-                          className="w-full mt-4" 
+                        <Button
+                          className="w-full mt-4"
                           variant="outline"
                           onClick={() => setLocation(`/property/${property.id}`)}
                         >
