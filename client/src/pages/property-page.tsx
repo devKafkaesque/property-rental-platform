@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
-import { Property } from "@shared/schema";
+import { Property, TenantContract } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +34,17 @@ export default function PropertyPage() {
     queryKey: [`/api/properties/${id}`],
     enabled: !!id,
   });
+
+  // Fetch tenant contracts to check if user is already connected
+  const { data: tenantContracts } = useQuery<TenantContract[]>({
+    queryKey: ["/api/tenant-contracts/tenant"],
+    enabled: !!user && user.role === "tenant",
+  });
+
+  // Check if tenant is already connected to this property
+  const isConnectedTenant = user?.role === "tenant" && tenantContracts?.some(
+    contract => contract.propertyId === Number(id) && contract.contractStatus === "active"
+  );
 
   const handleBack = () => {
     if (user) {
@@ -186,7 +197,8 @@ export default function PropertyPage() {
               </CardContent>
             </Card>
 
-            {user?.role === "tenant" && (
+            {/* Only show viewing and booking sections if user is a tenant and NOT connected to this property */}
+            {user?.role === "tenant" && !isConnectedTenant && (
               <>
                 <Card className="mb-6">
                   <CardHeader>
