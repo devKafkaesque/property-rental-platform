@@ -2,51 +2,54 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Property } from "@shared/schema";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+const model = genAI.getGenerativeModel({ 
+  model: "gemini-1.0-pro"
+});
 
-export async function compareProperties(properties: Property[]) {
+async function generateContent(prompt: string) {
   try {
-    console.log('Starting property comparison with Gemini API...');
-    const propertyDescriptions = properties.map(p => `
-      Property: ${p.name}
-      Type: ${p.type}
-      Location: ${p.address}
-      Bedrooms: ${p.bedrooms}
-      Bathrooms: ${p.bathrooms}
-      Square Footage: ${p.squareFootage}
-      Rent: $${p.rentPrice}
-      Features: ${[
-        p.wifi ? 'WiFi' : null,
-        ...(p.amenities || [])
-      ].filter(Boolean).join(', ')}
-    `).join('\n\n');
-
-    const prompt = `As a real estate expert, analyze these properties: \n${propertyDescriptions}\n\n` +
-      'For each property, provide:\n' +
-      '1. A list of key advantages (pros)\n' +
-      '2. A list of potential considerations (cons)\n' +
-      '3. What type of tenant this property would be best suited for\n\n' +
-      'Format the response as a JSON object with this structure:\n' +
-      '{\n' +
-      '  "properties": {\n' +
-      '    "[property_id]": {\n' +
-      '      "pros": ["advantage1", "advantage2", ...],\n' +
-      '      "cons": ["consideration1", "consideration2", ...],\n' +
-      '      "bestFor": "description of ideal tenant"\n' +
-      '    }\n' +
-      '  }\n' +
-      '}';
-
-    console.log('Sending request to Gemini API...');
+    console.log('Sending request to Gemini API with prompt:', prompt);
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
     console.log('Received response from Gemini API:', text);
+    return text;
+  } catch (error) {
+    console.error('Gemini API Error:', error);
+    throw error;
+  }
+}
 
+export async function compareProperties(properties: Property[]) {
+  try {
+    console.log('Starting property comparison...');
+    const propertyDescriptions = properties.map(p => `
+      Property: ${p.name}
+      Type: ${p.type}
+      Location: ${p.address}
+      Price: $${p.rentPrice}
+      Bedrooms: ${p.bedrooms}
+      Bathrooms: ${p.bathrooms}
+      Square Footage: ${p.squareFootage}
+    `).join('\n\n');
+
+    const prompt = `Compare these properties:\n${propertyDescriptions}\n\n` +
+      'Provide analysis in this JSON format:\n' +
+      '{\n' +
+      '  "properties": {\n' +
+      '    "[property_id]": {\n' +
+      '      "pros": ["advantage1", "advantage2"],\n' +
+      '      "cons": ["consideration1", "consideration2"],\n' +
+      '      "bestFor": "ideal tenant description"\n' +
+      '    }\n' +
+      '  }\n' +
+      '}';
+
+    const response = await generateContent(prompt);
     try {
-      return JSON.parse(text);
-    } catch (parseError) {
-      console.error('Error parsing Gemini response:', parseError);
+      return JSON.parse(response);
+    } catch (error) {
+      console.error('Error parsing comparison response:', error);
       return {
         properties: properties.reduce((acc, p) => ({
           ...acc,
@@ -59,7 +62,7 @@ export async function compareProperties(properties: Property[]) {
       };
     }
   } catch (error) {
-    console.error('Gemini API Error:', error);
+    console.error('Property comparison error:', error);
     throw error;
   }
 }
@@ -73,42 +76,26 @@ export async function generatePropertyDescription(details: {
   amenities?: string[];
 }) {
   try {
-    console.log('Generating property description with Gemini API...');
-    const prompt = `Generate a professional property description for:\n${JSON.stringify(details)}\n\n` +
-      'Include:\n' +
-      '1. An engaging description\n' +
-      '2. Key highlights\n' +
-      '3. SEO-friendly keywords\n\n' +
-      'Format as JSON:\n' +
+    const prompt = `Generate a property description in this JSON format:\n` +
       '{\n' +
       '  "description": "engaging property description",\n' +
-      '  "highlights": ["highlight1", "highlight2", ...],\n' +
-      '  "seoKeywords": ["keyword1", "keyword2", ...]\n' +
-      '}';
+      '  "highlights": ["key point 1", "key point 2"],\n' +
+      '  "seoKeywords": ["keyword1", "keyword2"]\n' +
+      '}\n\n' +
+      `Property details:\n${JSON.stringify(details, null, 2)}`;
 
-    console.log('Sending request to Gemini API...');
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
-    console.log('Received response from Gemini API:', text);
-
+    const response = await generateContent(prompt);
     try {
-      const parsed = JSON.parse(text);
-      return {
-        description: parsed.description || "A well-maintained property in a desirable location.",
-        highlights: parsed.highlights || ["Location", "Well maintained", "Modern amenities"],
-        seoKeywords: parsed.seoKeywords || ["rental property", "real estate", details.type]
-      };
+      return JSON.parse(response);
     } catch (error) {
-      console.error('Error parsing Gemini response:', error);
       return {
         description: "A well-maintained property in a desirable location.",
-        highlights: ["Location", "Well maintained", "Modern amenities"],
-        seoKeywords: ["rental property", "real estate", details.type]
+        highlights: ["Location", "Well maintained"],
+        seoKeywords: ["rental property", details.type]
       };
     }
   } catch (error) {
-    console.error('Gemini API Error:', error);
+    console.error('Property description error:', error);
     throw error;
   }
 }
@@ -122,46 +109,28 @@ export async function analyzePricing(details: {
   amenities?: string[];
 }) {
   try {
-    console.log('Analyzing pricing with Gemini API...');
-    const prompt = `Analyze pricing for this property:\n${JSON.stringify(details)}\n\n` +
-      'Provide:\n' +
-      '1. Suggested monthly rent\n' +
-      '2. Price range (min/max)\n' +
-      '3. Justification for pricing\n' +
-      '4. Market insights\n\n' +
-      'Format as JSON:\n' +
+    const prompt = `Analyze pricing for this property:\n${JSON.stringify(details, null, 2)}\n\n` +
+      'Provide analysis in this JSON format:\n' +
       '{\n' +
       '  "suggestedPrice": 2000,\n' +
       '  "priceRange": { "min": 1800, "max": 2200 },\n' +
-      '  "justification": "explanation of price",\n' +
-      '  "marketInsights": ["insight1", "insight2", ...]\n' +
+      '  "justification": "price explanation",\n' +
+      '  "marketInsights": ["insight1", "insight2"]\n' +
       '}';
 
-    console.log('Sending request to Gemini API...');
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
-    console.log('Received response from Gemini API:', text);
-
+    const response = await generateContent(prompt);
     try {
-      const parsed = JSON.parse(text);
-      return {
-        suggestedPrice: parsed.suggestedPrice || 2000,
-        priceRange: parsed.priceRange || { min: 1800, max: 2200 },
-        justification: parsed.justification || "Based on current market rates and property features",
-        marketInsights: parsed.marketInsights || ["Competitive market rates", "Good value proposition"]
-      };
+      return JSON.parse(response);
     } catch (error) {
-      console.error('Error parsing Gemini response:', error);
       return {
         suggestedPrice: 2000,
         priceRange: { min: 1800, max: 2200 },
-        justification: "Based on current market rates and property features",
-        marketInsights: ["Competitive market rates", "Good value proposition"]
+        justification: "Based on market rates and features",
+        marketInsights: ["Competitive market rates"]
       };
     }
   } catch (error) {
-    console.error('Gemini API Error:', error);
+    console.error('Pricing analysis error:', error);
     throw error;
   }
 }
