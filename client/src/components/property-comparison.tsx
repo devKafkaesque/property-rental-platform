@@ -57,118 +57,112 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
 
   const selectedProperties = properties?.filter(p => propertyIds.includes(p.id)) || [];
 
-  if (isLoading) {
-    return (
-      <Dialog open={open} onOpenChange={() => onClose()}>
-        <DialogContent>
-          <div className="flex justify-center items-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Property Comparison</DialogTitle>
           <DialogDescription>
-            Compare selected properties to make an informed decision
+            {isLoading ? "Loading property comparison..." : "Compare selected properties to make an informed decision"}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {comparisonError && (
-            <div className="text-red-500 p-4 rounded bg-red-50 mb-4">
-              {comparisonError}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {selectedProperties.map(property => {
-              const PropertyIcon = getPropertyIcon(property.type, property.category);
-              const propertyAnalysis = comparison?.properties?.[property.id];
-              console.log("Rendering analysis for property", property.id, propertyAnalysis);
-
-              return (
-                <Card key={property.id} className="relative">
-                  <CardHeader>
-                    <div className="flex items-center space-x-2">
-                      <PropertyIcon className="h-5 w-5" />
-                      <CardTitle>{property.name}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Basic Property Info */}
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">{property.address}</p>
-                      <div className="grid grid-cols-3 gap-2 text-sm">
-                        <div>
-                          <p className="font-medium">Bedrooms</p>
-                          <p>{property.bedrooms}</p>
-                        </div>
-                        <div>
-                          <p className="font-medium">Bathrooms</p>
-                          <p>{property.bathrooms}</p>
-                        </div>
-                        <div>
-                          <p className="font-medium">Sq. Ft.</p>
-                          <p>{property.squareFootage}</p>
-                        </div>
-                      </div>
-                      <p className="font-medium text-lg">${property.rentPrice}/month</p>
-                    </div>
-
-                    {/* AI Analysis */}
-                    {propertyAnalysis ? (
-                      <div className="space-y-4">
-                        {/* Pros */}
-                        <div className="space-y-2">
-                          <h4 className="font-medium flex items-center gap-2">
-                            <Star className="h-4 w-4 text-green-500" />
-                            Advantages
-                          </h4>
-                          <ul className="list-disc list-inside text-sm space-y-1">
-                            {propertyAnalysis.pros.map((pro: string, index: number) => (
-                              <li key={index} className="text-green-700">{pro}</li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        {/* Cons */}
-                        <div className="space-y-2">
-                          <h4 className="font-medium flex items-center gap-2">
-                            <AlertCircle className="h-4 w-4 text-red-500" />
-                            Considerations
-                          </h4>
-                          <ul className="list-disc list-inside text-sm space-y-1">
-                            {propertyAnalysis.cons.map((con: string, index: number) => (
-                              <li key={index} className="text-red-700">{con}</li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        {/* Best For */}
-                        <div className="space-y-2">
-                          <h4 className="font-medium">Best Suited For</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {propertyAnalysis.bestFor}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-muted-foreground text-sm">
-                        Analysis not available
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
+        {isLoading ? (
+          <div className="flex justify-center items-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
           </div>
-        </div>
+        ) : (
+          <div className="space-y-6">
+            {comparisonError && (
+              <div className="text-red-500 p-4 rounded bg-red-50 mb-4">
+                {comparisonError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {selectedProperties.map(property => {
+                const PropertyIcon = getPropertyIcon(property.type, property.category);
+                const propertyAnalysis = comparison?.properties?.[property.id];
+                console.log("Rendering analysis for property", property.id, propertyAnalysis);
+
+                return (
+                  <Card key={property.id} className="relative">
+                    <CardHeader>
+                      <div className="flex items-center space-x-2">
+                        <PropertyIcon className="h-5 w-5" />
+                        <CardTitle>{property.name}</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Basic Property Info */}
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">{property.address}</p>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <p className="font-medium">Bedrooms</p>
+                            <p>{property.bedrooms}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium">Bathrooms</p>
+                            <p>{property.bathrooms}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium">Sq. Ft.</p>
+                            <p>{property.squareFootage}</p>
+                          </div>
+                        </div>
+                        <p className="font-medium text-lg">${property.rentPrice}/month</p>
+                      </div>
+
+                      {/* AI Analysis */}
+                      {propertyAnalysis ? (
+                        <div className="space-y-4">
+                          {/* Pros */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              <Star className="h-4 w-4 text-green-500" />
+                              Advantages
+                            </h4>
+                            <ul className="list-disc list-inside text-sm space-y-1">
+                              {propertyAnalysis.pros.map((pro: string, index: number) => (
+                                <li key={index} className="text-green-700">{pro}</li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          {/* Cons */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium flex items-center gap-2">
+                              <AlertCircle className="h-4 w-4 text-red-500" />
+                              Considerations
+                            </h4>
+                            <ul className="list-disc list-inside text-sm space-y-1">
+                              {propertyAnalysis.cons.map((con: string, index: number) => (
+                                <li key={index} className="text-red-700">{con}</li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          {/* Best For */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium">Best Suited For</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {propertyAnalysis.bestFor}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-muted-foreground text-sm">
+                          Analysis not available
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

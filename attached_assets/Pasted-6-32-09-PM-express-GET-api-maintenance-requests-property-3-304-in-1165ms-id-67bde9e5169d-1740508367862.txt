@@ -1,0 +1,70 @@
+6:32:09 PM [express] GET /api/maintenance-requests/property/3 304 in 1165ms :: [{"_id":"67bde9e5169d…
+Starting property comparison...
+Sending request to Gemini API with prompt: Analyze these properties and return a JSON object using the numeric ID as the key:
+
+      ID: 1
+      Property: Taj Mahal
+      Type: villa
+      Location: Agra, Uttar Pradesh
+      Price: $2000
+      Bedrooms: 4
+      Bathrooms: 9
+      Square Footage: 25000
+    
+
+
+      ID: 2
+      Property: Qutub Minar
+      Type: house
+      Location: New Delhi, Delhi
+      Price: $2333
+      Bedrooms: 4
+      Bathrooms: 4
+      Square Footage: 20000
+    
+
+
+      ID: 3
+      Property: oughtaknothaaat
+      Type: house
+      Location: beabadoobee
+      Price: $2000
+      Bedrooms: 3
+      Bathrooms: 3
+      Square Footage: 2300
+    
+
+The response must be a valid JSON object with this exact structure:
+{
+  "properties": {
+    "ID_NUMBER": {
+      "pros": ["advantage1", "advantage2"],
+      "cons": ["consideration1", "consideration2"],
+      "bestFor": "ideal tenant description"
+    }
+  }
+}
+
+Replace ID_NUMBER with the actual property ID from the input. Use only the numeric IDs as keys.
+Received response from Gemini API: ```json
+{
+  "properties": {
+    "1": {
+      "pros": ["Luxurious size and amenities", "Iconic location"],
+      "cons": ["High price", "Potentially high maintenance costs"],
+      "bestFor": "Large families or those seeking a prestigious property"
+    },
+    "2": {
+      "pros": ["Spacious living area", "Prime location in Delhi"],
+      "cons": ["Relatively high price", "Potential for noise pollution"],
+      "bestFor": "Families or professionals looking for a central location"
+    },
+    "3": {
+      "pros": ["Affordable price", "Manageable size"],
+      "cons": ["Uncommon property name", "Potentially unfamiliar location"],
+      "bestFor": "Individuals or small families seeking an affordable home"
+    }
+  }
+}
+```
+6:32:18 PM [express] POST /api/properties/compare 200 in 2521ms :: {"properties":{"1":{"pros":["Luxu…
