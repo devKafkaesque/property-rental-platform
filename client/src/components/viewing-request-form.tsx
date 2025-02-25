@@ -17,6 +17,14 @@ interface ViewingRequestFormProps {
 
 export default function ViewingRequestForm({ propertyId, onSuccess }: ViewingRequestFormProps) {
   const { toast } = useToast();
+  const form = useForm({
+    resolver: zodResolver(insertViewingRequestSchema),
+    defaultValues: {
+      propertyId,
+      preferredDate: new Date(),
+      message: "",
+    },
+  });
 
   // Fetch existing viewing requests to check for monthly limit
   const { data: existingRequests } = useQuery({
@@ -31,24 +39,6 @@ export default function ViewingRequestForm({ propertyId, onSuccess }: ViewingReq
            request.status !== 'cancelled' &&
            request.status !== 'completed' &&
            requestDate > oneMonthAgo;
-  });
-
-  if (hasActiveRequest) {
-    return (
-      <div className="text-muted-foreground text-sm">
-        You already have an active viewing request for this property. 
-        Please wait for it to be completed or cancelled before making another request.
-      </div>
-    );
-  }
-
-  const form = useForm({
-    resolver: zodResolver(insertViewingRequestSchema),
-    defaultValues: {
-      propertyId,
-      preferredDate: new Date(),
-      message: "",
-    },
   });
 
   const viewingRequestMutation = useMutation({
@@ -79,6 +69,14 @@ export default function ViewingRequestForm({ propertyId, onSuccess }: ViewingReq
     },
   });
 
+  if (hasActiveRequest) {
+    return (
+      <div className="text-muted-foreground text-sm">
+        You already have an active viewing request for this property. 
+        Please wait for it to be completed or cancelled before making another request.
+      </div>
+    );
+  }
 
   return (
     <Form {...form}>

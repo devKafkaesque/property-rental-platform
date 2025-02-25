@@ -1,14 +1,17 @@
 import { ViewingRequest } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ViewingRequestListProps {
   propertyId: number;
 }
 
 export default function ViewingRequestList({ propertyId }: ViewingRequestListProps) {
+  const { user } = useAuth();
+
   const { data: requests, isLoading } = useQuery<ViewingRequest[]>({
     queryKey: [`/api/viewing-requests/tenant`],
   });
@@ -29,7 +32,11 @@ export default function ViewingRequestList({ propertyId }: ViewingRequestListPro
     );
   }
 
-  const propertyRequests = requests.filter(request => request.propertyId === propertyId);
+  // Filter requests for current tenant and property
+  const propertyRequests = requests.filter(request => 
+    request.propertyId === propertyId && 
+    request.tenantId === user?.id
+  );
 
   if (propertyRequests.length === 0) {
     return (
