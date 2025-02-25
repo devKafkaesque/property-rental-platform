@@ -402,7 +402,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
                         {...field}
                         required
                         min="1"
-                        value={field.value || ""}
+                        value={field.value}
                         onChange={(e) => {
                           const value = e.target.valueAsNumber || 0;
                           field.onChange(value);
@@ -434,7 +434,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
                         {...field}
                         required
                         min="1"
-                        value={field.value || ""}
+                        value={field.value}
                         onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
                       />
                     </div>
