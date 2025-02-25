@@ -25,19 +25,22 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<PropertyCategory | "all">("all");
 
+  // Query properties based on user role
   const { data: properties, isLoading: propertiesLoading } = useQuery<Property[]>({
     queryKey: [user?.role === "landowner" ? `/api/properties/owner/${user?.id}` : "/api/properties"],
     enabled: !!user,
   });
 
+  // Query tenant contracts for tenant users
   const { data: tenantContracts, isLoading: contractsLoading } = useQuery<TenantContract[]>({
     queryKey: ["/api/tenant-contracts/tenant"],
     enabled: !!user && user.role === "tenant",
   });
 
+  // Query bookings for tenant users
   const { data: bookings, isLoading: bookingsLoading } = useQuery<Booking[]>({
     queryKey: ["/api/bookings/tenant"],
-    enabled: user?.role === "tenant",
+    enabled: !!user && user.role === "tenant",
   });
 
   const filteredProperties = properties?.filter(property => {
@@ -66,11 +69,8 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background p-6">
       <div className="container mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-4xl font-bold">
-            Welcome, {user.username}!
-          </h1>
+          <h1 className="text-4xl font-bold">Welcome, {user.username}!</h1>
           <div className="flex items-center gap-4">
-            {/* Add Connections Link */}
             <Link href="/connections">
               <Button variant="outline">
                 <Building2 className="h-4 w-4 mr-2" />

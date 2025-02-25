@@ -137,8 +137,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/properties/owner/:id", async (req, res) => {
-    const properties = await storage.getPropertiesByOwner(Number(req.params.id));
-    res.json(properties);
+    try {
+      const properties = await storage.getPropertiesByOwner(Number(req.params.id));
+      console.log(`Retrieved properties for owner ${req.params.id}:`, properties);
+      res.json(properties);
+    } catch (error) {
+      console.error('Error fetching owner properties:', error);
+      res.status(500).json({ error: "Failed to fetch owner properties" });
+    }
+  });
+
+  app.get("/api/tenant-contracts/tenant", ensureAuthenticated, async (req, res) => {
+    try {
+      if (req.user!.role !== "tenant") {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const contracts = await storage.getTenantContractsByTenant(req.user!.id);
+      console.log(`Retrieved contracts for tenant ${req.user!.id}:`, contracts);
+      res.json(contracts);
+    } catch (error) {
+      console.error('Error fetching tenant contracts:', error);
+      res.status(500).json({ error: "Failed to fetch tenant contracts" });
+    }
+  });
+
+  app.get("/api/tenant-contracts/landowner", ensureAuthenticated, async (req, res) => {
+    try {
+      if (req.user!.role !== "landowner") {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      const contracts = await storage.getTenantContractsByLandowner(req.user!.id);
+      console.log(`Retrieved contracts for landowner ${req.user!.id}:`, contracts);
+      res.json(contracts);
+    } catch (error) {
+      console.error('Error fetching landowner contracts:', error);
+      res.status(500).json({ error: "Failed to fetch landowner contracts" });
+    }
   });
 
   app.post("/api/properties/:id/connection-code", ensureLandowner, async (req, res) => {
