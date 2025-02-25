@@ -37,10 +37,12 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Compare Properties</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="sm:max-w-[900px] h-[80vh] overflow-y-auto">
+        <DialogHeader className="mb-4">
+          <DialogTitle className="text-xl font-semibold">
+            Compare Properties
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             {isLoading ? "Loading comparison..." : "Review and compare selected properties"}
           </DialogDescription>
         </DialogHeader>
@@ -50,7 +52,7 @@ export function PropertyComparison({ propertyIds, onClose, open }: PropertyCompa
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             {selectedProperties.map(property => {
               const analysis = comparison?.properties?.[property.id];
 
