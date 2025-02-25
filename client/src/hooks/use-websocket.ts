@@ -23,7 +23,8 @@ export function useWebSocket(propertyId: number) {
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const hostname = window.location.hostname;
-    const port = import.meta.env.VITE_WS_PORT || '5000'; // Configurable port
+    // Use the same port as the current connection
+    const port = window.location.port || '5000';
     const wsUrl = `${protocol}//${hostname}:${port}/ws/chat`;
 
     console.log('Connecting to WebSocket at:', wsUrl);
@@ -84,7 +85,7 @@ export function useWebSocket(propertyId: number) {
     wsRef.current = ws;
 
     return () => {
-      if (wsRef.current) {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(
           JSON.stringify({
             type: 'leave',

@@ -49,7 +49,7 @@ app.use((req, res, next) => {
 
     const server = await registerRoutes(app);
 
-    // Set up WebSocket server
+    // Set up WebSocket server before Vite middleware
     setupWebSocketServer(server);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -70,7 +70,6 @@ app.use((req, res, next) => {
     server.listen({
       port,
       host: "0.0.0.0",
-      reusePort: true,
     }, () => {
       log(`serving on port ${port}`);
     });
