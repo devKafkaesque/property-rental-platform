@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Property } from "@shared/schema";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: "gemini" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 async function generateContent(prompt: string) {
   try {
@@ -32,7 +32,7 @@ export async function compareProperties(properties: Property[]) {
     `).join('\n\n');
 
     const prompt = `Compare these properties:\n${propertyDescriptions}\n\n` +
-      'Provide analysis in this JSON format:\n' +
+      'Return a simple analysis in JSON format:\n' +
       '{\n' +
       '  "properties": {\n' +
       '    "[property_id]": {\n' +
@@ -74,9 +74,9 @@ export async function generatePropertyDescription(details: {
   amenities?: string[];
 }) {
   try {
-    const prompt = `Generate a property description in this JSON format:\n` +
+    const prompt = `Generate a short property description with this JSON format:\n` +
       '{\n' +
-      '  "description": "engaging property description",\n' +
+      '  "description": "brief property description",\n' +
       '  "highlights": ["key point 1", "key point 2"],\n' +
       '  "seoKeywords": ["keyword1", "keyword2"]\n' +
       '}\n\n' +
@@ -108,7 +108,7 @@ export async function analyzePricing(details: {
 }) {
   try {
     const prompt = `Analyze pricing for this property:\n${JSON.stringify(details, null, 2)}\n\n` +
-      'Provide analysis in this JSON format:\n' +
+      'Provide brief analysis in JSON format:\n' +
       '{\n' +
       '  "suggestedPrice": 2000,\n' +
       '  "priceRange": { "min": 1800, "max": 2200 },\n' +
