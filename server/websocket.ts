@@ -22,7 +22,11 @@ class ChatServer {
   private groups: Map<string, Set<number>> = new Map();
 
   constructor(server: Server) {
-    const wss = new WebSocketServer({ server, path: '/ws/chat' }); // Changed path to avoid conflict with Vite
+    const wss = new WebSocketServer({ 
+      server,
+      path: '/ws/chat',
+      perMessageDeflate: false // Disable per-message deflate to avoid conflicts
+    });
 
     wss.on('connection', (ws: WebSocket) => {
       log('New WebSocket connection');

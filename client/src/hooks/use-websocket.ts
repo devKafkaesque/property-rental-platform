@@ -20,7 +20,11 @@ export function useWebSocket(groupId?: string) {
     if (!user) return;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/chat`;
+    const hostname = window.location.hostname;
+    const port = window.location.port || '5000';
+    const wsUrl = `${protocol}//${hostname}:${port}/ws/chat`;
+
+    console.log('Connecting to WebSocket at:', wsUrl); // Debug log
 
     const ws = new WebSocket(wsUrl);
 
