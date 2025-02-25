@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { connectDB } from "./db/mongoose";
 import { requestLogger } from "./middleware/request-logger";
+import { setupWebSocketServer } from "./websocket";
 
 const app = express();
 app.use(express.json());
@@ -47,6 +48,9 @@ app.use((req, res, next) => {
     await connectDB();
 
     const server = await registerRoutes(app);
+
+    // Set up WebSocket server
+    setupWebSocketServer(server);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err.status || err.statusCode || 500;
