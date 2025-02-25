@@ -14,7 +14,7 @@ const userSchema = new Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-// Enhanced Property Schema
+// Enhanced property table with more detailed information
 export interface PropertyDocument extends Omit<Property, "id">, Document {
   id: number;
 }
@@ -46,7 +46,7 @@ const propertySchema = new Schema({
   accessibility: { type: [String], default: [] },
   securityFeatures: { type: [String], default: [] },
   maintainanceHistory: { type: [Object], default: [] },
-  rentPrice: { type: Number, required: true },
+  rentPrice: { type: Number, required: true }, // Ensure rentPrice is required
   depositAmount: { type: Number, required: true },
   connectionCode: { type: String, default: null }, // Added connectionCode field
 });
@@ -62,9 +62,9 @@ const bookingSchema = new Schema({
   tenantId: { type: Number, required: true },
   startDate: { type: Date, required: true },
   endDate: { type: Date, required: true },
-  status: { 
-    type: String, 
-    required: true, 
+  status: {
+    type: String,
+    required: true,
     enum: ["pending", "approved", "rejected"],
     default: "pending"
   },

@@ -112,6 +112,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "This property is not available for connection" });
       }
 
+      // Check if rentPrice is set
+      if (!property.rentPrice) {
+        console.error('Property has no rent price set:', property.id);
+        return res.status(400).json({ error: "Property configuration is incomplete. Please contact the landlord." });
+      }
+
       // Log contract creation attempt
       console.log('Attempting to create contract with data:', {
         propertyId: property.id,

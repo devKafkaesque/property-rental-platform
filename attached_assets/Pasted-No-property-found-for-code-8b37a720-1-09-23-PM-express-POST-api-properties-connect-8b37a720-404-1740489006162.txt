@@ -1,0 +1,56 @@
+No property found for code: 8b37a720
+1:09:23 PM [express] POST /api/properties/connect/8b37a720 404 in 928ms :: {"error":"Invalid connect…
+Found property: {
+  parkingSpaces: 0,
+  petsAllowed: false,
+  utilities: [],
+  amenities: [],
+  accessibility: [],
+  securityFeatures: [],
+  maintainanceHistory: [],
+  _id: new ObjectId('67bc5a179ea5aa6f734f5964'),
+  id: 3,
+  name: "Parashar's Nikunj",
+  description: 'Luxurious 4bhk in the heart of New Delhi',
+  address: 'plot no.-61, 3rd Floor, Pocket-11A, Panchsheel Enclave, Sector-23, Rohini, New Delhi',
+  type: 'studio',
+  furnished: 'full',
+  wifi: true,
+  condition: 'Splendid',
+  status: 'available',
+  category: 'luxury',
+  ownerId: 1,
+  images: [ '/uploads/1740397078770-117414855.jpg' ],
+  createdAt: 2025-02-24T11:37:59.960Z,
+  __v: 0,
+  connectionCode: '8b37a723'
+}
+Attempting to create contract with data: { propertyId: 3, tenantId: 2, landownerId: 1, rentAmount: undefined }
+Error connecting to property: Error: TenantContract validation failed: rentAmount: Path `rentAmount` is required.
+    at ValidationError.inspect (/home/runner/workspace/node_modules/mongoose/lib/error/validation.js:52:26)
+    at formatValue (node:internal/util/inspect:809:19)
+    at inspect (node:internal/util/inspect:368:10)
+    at formatWithOptionsInternal (node:internal/util/inspect:2307:40)
+    at formatWithOptions (node:internal/util/inspect:2169:10)
+    at console.value (node:internal/console/constructor:350:14)
+    at console.warn (node:internal/console/constructor:383:61)
+    at <anonymous> (/home/runner/workspace/server/routes.ts:146:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5) {
+  errors: {
+    rentAmount: ValidatorError: Path `rentAmount` is required.
+        at validate (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1404:13)
+        at SchemaType.doValidate (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1388:7)
+        at /home/runner/workspace/node_modules/mongoose/lib/document.js:3082:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:77:11) {
+      properties: [Object],
+      kind: 'required',
+      path: 'rentAmount',
+      value: undefined,
+      reason: undefined,
+      [Symbol(mongoose#validatorError)]: true
+    }
+  },
+  _message: 'TenantContract validation failed'
+}
+1:09:27 PM [express] POST /api/properties/connect/8b37a723 500 in 1176ms :: {"error":"Failed to esta…
+^CMongoDB disconnected
