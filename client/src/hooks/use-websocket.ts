@@ -28,7 +28,6 @@ export function useWebSocket(propertyId: number) {
     }
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // Use current window location for WebSocket connection
     const wsUrl = `${protocol}//${window.location.host}/ws/chat`;
 
     console.log('Connecting to WebSocket at:', wsUrl);
@@ -37,7 +36,7 @@ export function useWebSocket(propertyId: number) {
 
     ws.onopen = () => {
       console.log('WebSocket Connected');
-      reconnectAttempts.current = 0; // Reset on successful connection
+      reconnectAttempts.current = 0;
       ws.send(
         JSON.stringify({
           type: 'join',
@@ -53,12 +52,22 @@ export function useWebSocket(propertyId: number) {
 
     ws.onmessage = (event) => {
       try {
-        const message = JSON.parse(event.data);
+        const data = event.data;
+        const message = typeof data === 'string' ? JSON.parse(data) : data;
+
+        if (!message || !message.type) {
+          console.warn('Received invalid message format:', message);
+          return;
+        }
+
         console.log('Received message:', message);
-        // Broadcast the message to the window so the ChatWindow component can handle it
-        window.postMessage(message, window.location.origin);
+
+        // Post message to window event system if it's relevant to this property
+        if (message.propertyId === propertyId || message.type === 'history') {
+          window.postMessage(message, window.location.origin);
+        }
       } catch (error) {
-        console.error('Error parsing message:', error);
+        console.error('Error parsing WebSocket message:', error);
       }
     };
 
@@ -73,10 +82,16 @@ export function useWebSocket(propertyId: number) {
 
     ws.onclose = () => {
       console.log('WebSocket Disconnected');
+      wsRef.current = null;
+
       if (reconnectAttempts.current < maxReconnectAttempts) {
         reconnectAttempts.current += 1;
         console.log(`Reconnecting attempt ${reconnectAttempts.current}/${maxReconnectAttempts}...`);
-        setTimeout(connect, 5000); // Reconnect after 5s
+        setTimeout(() => {
+          if (wsRef.current === null) { // Only reconnect if still disconnected
+            connect();
+          }
+        }, 5000); // Reconnect after 5s
       } else {
         console.log('Max reconnect attempts reached. Giving up.');
         toast({

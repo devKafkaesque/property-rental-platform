@@ -38,7 +38,6 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
 
   const handleSendMessage = () => {
     if (!inputMessage.trim() || !user) return;
-
     sendMessage(inputMessage.trim());
     setInputMessage('');
   };
@@ -54,12 +53,16 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
   useEffect(() => {
     const handleWebSocketMessage = (event: MessageEvent) => {
       try {
-        const message = JSON.parse(event.data) as ChatMessage;
+        const data = event.data;
+        const message = typeof data === 'string' ? JSON.parse(data) : data;
+
+        if (!message || !message.type) return;
+
         console.log('Received message:', message);
 
-        if (message.type === 'history') {
-          setMessages(message.messages || []);
-        } else {
+        if (message.type === 'history' && Array.isArray(message.messages)) {
+          setMessages(message.messages);
+        } else if (message.propertyId === propertyId) {
           setMessages(prev => [...prev, message]);
         }
       } catch (error) {
@@ -72,7 +75,7 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
     return () => {
       window.removeEventListener('message', handleWebSocketMessage);
     };
-  }, []);
+  }, [propertyId]);
 
   return (
     <div className="flex flex-col h-[600px] border rounded-lg">
