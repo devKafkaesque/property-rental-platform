@@ -1,0 +1,24 @@
+3:59:39 PM [express] GET /api/bookings/tenant 200 in 694ms
+3:59:40 PM [express] GET /api/tenant-contracts/tenant 304 in 934ms :: [{"_id":"67bddf201a3f103ab8fb8…
+3:59:41 PM [express] GET /api/maintenance-requests/tenant/1 200 in 930ms :: []
+3:59:41 PM [express] GET /api/maintenance-requests/tenant/3 200 in 924ms :: []
+3:59:41 PM [express] GET /api/maintenance-requests/tenant/2 200 in 929ms :: []
+Error creating maintenance request: ReferenceError: insertMaintenanceRequestSchema is not defined
+    at <anonymous> (/home/runner/workspace/server/routes.ts:360:20)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at ensureAuthenticated (/home/runner/workspace/server/routes.ts:56:37)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/runner/workspace/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/runner/workspace/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/runner/workspace/node_modules/express/lib/router/layer.js:95:5)
+    at /home/runner/workspace/node_modules/express/lib/router/index.js:284:15
+    at Function.process_params (/home/runner/workspace/node_modules/express/lib/router/index.js:346:12)
+    at next (/home/runner/workspace/node_modules/express/lib/router/index.js:280:10)
+    at strategy.pass (/home/runner/workspace/node_modules/passport/lib/middleware/authenticate.js:355:9)
+    at /home/runner/workspace/node_modules/passport/lib/strategies/session.js:120:12
+    at pass (/home/runner/workspace/node_modules/passport/lib/authenticator.js:352:31)
+    at deserialized (/home/runner/workspace/node_modules/passport/lib/authenticator.js:364:7)
+    at <anonymous> (/home/runner/workspace/server/auth.ts:67:7)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+3:59:56 PM [express] POST /api/maintenance-requests 500 in 712ms :: {"error":"Failed to create maint…

@@ -7,7 +7,8 @@ import {
   insertViewingRequestSchema,
   insertBookingSchema,
   insertReviewSchema,
-  insertTenantContractSchema
+  insertTenantContractSchema,
+  insertMaintenanceRequestSchema
 } from "@shared/schema";
 import multer from "multer";
 import path from "path";
