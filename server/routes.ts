@@ -755,21 +755,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  //This is the updated endpoint
-  app.get("/api/properties/owner/chats", ensureAuthenticated, async (req, res) => {
+  app.get("/api/properties/owner/chats", ensureLandowner, async (req, res) => {
     try {
-      if (req.user!.role !== "landowner") {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      // Ensure valid user ID
+      // Ensure valid user ID and it's a landowner
       if (!req.user || typeof req.user.id !== 'number') {
         console.error('Missing or invalid user:', req.user);
         return res.status(401).json({ error: "Invalid user session" });
       }
 
       const ownerId = req.user.id;
-      console.log('Fetching chat properties for owner:', ownerId, typeof ownerId);
+      console.log('Fetching chat properties for owner:', ownerId);
 
       // Get properties owned by the landowner
       const properties = await storage.getPropertiesByOwner(ownerId);
@@ -780,18 +775,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json([]);
       }
 
-      // Get active tenant contracts for these properties
+      // Map properties to include active tenant contract details
       const chatProperties = await Promise.all(
         properties.map(async (property) => {
           if (!property) return null;
 
+          // Get contracts for this property
           const contracts = await storage.getTenantContractsByProperty(property.id);
           console.log(`Contracts for property ${property.id}:`, contracts);
 
+          // Find active contract
           const activeContract = contracts.find(c => c.contractStatus === "active");
           console.log(`Active contract for property ${property.id}:`, activeContract);
 
           if (activeContract) {
+            // Get tenant details
             const tenant = await storage.getUser(activeContract.tenantId);
             console.log('Found active contract with tenant:', {
               propertyId: property.id,
@@ -810,10 +808,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      // Filter out null values and return active properties
+      // Filter out null values (properties without active contracts)
       const activeProperties = chatProperties.filter((prop): prop is NonNullable<typeof prop> => prop !== null);
       console.log('Final chat properties:', activeProperties);
 
+      // Send response
       res.json(activeProperties);
     } catch (error) {
       console.error('Error fetching landowner chat properties:', error);
@@ -821,39 +820,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/properties/tenant/chats", ensureAuthenticated, async (req, res) => {
-    try {
-      if (req.user!.role !== "tenant") {
-        return res.status(403).json({ error: "Access denied" });
-      }
-
-      // Get active contracts for the tenant
-      const contracts = await storage.getTenantContractsByTenant(req.user!.id);
-      const activeContracts = contracts.filter(c => c.contractStatus === "active");
-
-      // Get property and landowner details for each active contract
-      const chatProperties = await Promise.all(
-        activeContracts.map(async (contract) => {
-          const property = await storage.getPropertyById(contract.propertyId);
-          const landowner = await storage.getUser(contract.landownerId);
-
-          if (!property) return null;
-
-          return {
-            id: property.id,
-            name: property.name,
-            otherPartyName: landowner?.username || "Unknown Landowner"
-          };
-        })
-      );
-
-      // Filter out any null values from properties that weren't found
-      res.json(chatProperties.filter(Boolean));
-    } catch (error) {
-      console.error('Error fetching tenant chat properties:', error);
-      res.status(500).json({ error: "Failed to fetch chat properties" });
-    }
-  });
   // Add this endpoint after other property routes
   app.patch("/api/properties/:id/name", ensureLandowner, async (req, res) => {
     try {

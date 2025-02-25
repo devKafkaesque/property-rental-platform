@@ -48,23 +48,39 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        // Try to find user by username or email
         const user = await storage.getUserByUsernameOrEmail(username);
         if (!user || !(await comparePasswords(password, user.password))) {
           return done(null, false, { message: "Invalid credentials" });
         }
-        return done(null, user);
+        // Ensure id is properly set as a number
+        const authenticatedUser = {
+          ...user,
+          id: Number(user.id)
+        };
+        return done(null, authenticatedUser);
       } catch (err) {
         return done(err);
       }
     }),
   );
 
-  passport.serializeUser((user, done) => done(null, user.id));
+  passport.serializeUser((user, done) => {
+    // Ensure we're serializing the ID as a number
+    done(null, Number(user.id));
+  });
+
   passport.deserializeUser(async (id: number, done) => {
     try {
       const user = await storage.getUser(id);
-      done(null, user);
+      if (!user) {
+        return done(null, false);
+      }
+      // Ensure id is properly set as a number when deserializing
+      const deserializedUser = {
+        ...user,
+        id: Number(user.id)
+      };
+      done(null, deserializedUser);
     } catch (err) {
       done(err);
     }
@@ -72,13 +88,11 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      // Check for existing username
       const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
         return res.status(400).json({ error: "Username already exists" });
       }
 
-      // Check for existing email
       const existingEmail = await storage.getUserByEmail(req.body.email);
       if (existingEmail) {
         return res.status(400).json({ error: "Email already registered" });
@@ -89,9 +103,15 @@ export function setupAuth(app: Express) {
         password: await hashPassword(req.body.password),
       });
 
-      req.login(user, (err) => {
+      // Ensure id is a number before login
+      const createdUser = {
+        ...user,
+        id: Number(user.id)
+      };
+
+      req.login(createdUser, (err) => {
         if (err) return next(err);
-        res.status(201).json(user);
+        res.status(201).json(createdUser);
       });
     } catch (err) {
       next(err);
@@ -99,7 +119,12 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    res.status(200).json(req.user);
+    // Ensure we're sending back a user with numeric ID
+    const user = req.user as Express.User;
+    res.status(200).json({
+      ...user,
+      id: Number(user.id)
+    });
   });
 
   app.post("/api/logout", (req, res, next) => {
@@ -111,6 +136,11 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    res.json(req.user);
+    // Ensure we're sending back a user with numeric ID
+    const user = req.user as Express.User;
+    res.json({
+      ...user,
+      id: Number(user.id)
+    });
   });
 }
