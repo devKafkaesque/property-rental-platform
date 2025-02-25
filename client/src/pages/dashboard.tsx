@@ -159,6 +159,7 @@ export default function Dashboard() {
             </>
           )}
 
+          {/* Viewing Requests Section for Landowners */}
           {user.role === "landowner" && properties && properties.length > 0 && (
             <>
               <h2 className="text-2xl font-semibold mt-12 mb-6">Property Viewing Requests</h2>
@@ -166,10 +167,15 @@ export default function Dashboard() {
                 {properties.map((property) => (
                   <Card key={property.id}>
                     <CardHeader>
-                      <CardTitle>{property.name}</CardTitle>
+                      <CardTitle className="flex items-center gap-2">
+                        {property.name}
+                        <span className="text-sm font-normal text-muted-foreground">
+                          ({property.address})
+                        </span>
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <ViewingRequestManagement propertyId={property.id} />
+                      <ViewingRequestManagement propertyId={property.id} isOwner={true} />
                     </CardContent>
                   </Card>
                 ))}
