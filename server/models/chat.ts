@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 const chatMessageSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ['message', 'join', 'leave'],
+    enum: ['message', 'join', 'leave', 'delete'],
     required: true
   },
   userId: {
@@ -25,6 +25,14 @@ const chatMessageSchema = new mongoose.Schema({
   timestamp: {
     type: Date,
     default: Date.now
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   }
 });
 

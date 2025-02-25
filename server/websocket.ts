@@ -2,6 +2,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import { log } from './vite';
 import { ChatMessage } from './models/chat';
+import { storage } from './storage';
+import { parse } from 'cookie';
 
 interface ChatClient {
   ws: WebSocket;
@@ -11,13 +13,13 @@ interface ChatClient {
 }
 
 interface ChatMessageData {
-  type: 'message' | 'join' | 'leave' | 'history';
+  type: 'message' | 'join' | 'leave' | 'history' | 'delete';
   userId: number;
   username: string;
   content: string;
   propertyId: number;
   timestamp: number | string;
-  messages?: ChatMessage[]; // For history type
+  messages?: typeof ChatMessage[]; // For history type
 }
 
 class ChatServer {
@@ -28,31 +30,59 @@ class ChatServer {
     const wss = new WebSocketServer({ 
       server,
       path: '/ws/chat',
-      perMessageDeflate: false
+      perMessageDeflate: false,
+      verifyClient: async (info, callback) => {
+        try {
+          const cookies = parse(info.req.headers.cookie || '');
+          const sessionId = cookies['connect.sid'];
+
+          if (!sessionId) {
+            callback(false, 401, 'Unauthorized: No session found');
+            return;
+          }
+
+          // Add session info to request for later use
+          (info.req as any).sessionId = sessionId;
+          callback(true);
+        } catch (error) {
+          log('WebSocket authentication error:', error instanceof Error ? error.message : 'Unknown error');
+          callback(false, 500, 'Internal server error');
+        }
+      }
     });
 
-    wss.on('connection', (ws: WebSocket) => {
-      log('New WebSocket connection');
+    wss.on('connection', async (ws: WebSocket, req: any) => {
+      log('New WebSocket connection attempt');
 
-      ws.on('message', async (data: string) => {
-        try {
-          const message = JSON.parse(data) as ChatMessageData;
-          await this.handleMessage(ws, message);
-        } catch (error) {
-          log('Error handling message:', error instanceof Error ? error.message : 'Unknown error');
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
-          }
+      try {
+        if (!req.sessionId) {
+          ws.close(1008, 'Unauthorized: No session found');
+          return;
         }
-      });
 
-      ws.on('close', () => {
-        this.handleDisconnect(ws);
-      });
+        ws.on('message', async (data: string) => {
+          try {
+            const message = JSON.parse(data) as ChatMessageData;
+            await this.handleMessage(ws, message);
+          } catch (error) {
+            log('Error handling message:', error instanceof Error ? error.message : 'Unknown error');
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
+            }
+          }
+        });
 
-      ws.on('error', (error) => {
-        log('WebSocket error:', error instanceof Error ? error.message : 'Unknown error');
-      });
+        ws.on('close', () => {
+          this.handleDisconnect(ws);
+        });
+
+        ws.on('error', (error) => {
+          log('WebSocket error:', error instanceof Error ? error.message : 'Unknown error');
+        });
+      } catch (error) {
+        log('Error in WebSocket connection:', error instanceof Error ? error.message : 'Unknown error');
+        ws.close(1011, 'Something went wrong');
+      }
     });
 
     wss.on('error', (error) => {
@@ -83,6 +113,9 @@ class ChatServer {
           break;
         case 'leave':
           await this.handleLeave(message);
+          break;
+        case 'delete':
+          await this.handleDeleteMessage(message);
           break;
       }
     } catch (error) {
@@ -175,6 +208,30 @@ class ChatServer {
       this.broadcastToPropertyGroup(message);
     } catch (error) {
       log('Error in handleChatMessage:', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  }
+
+  private async handleDeleteMessage(message: ChatMessageData) {
+    try {
+      // Update message in MongoDB
+      await ChatMessage.findOneAndUpdate(
+        { 
+          propertyId: message.propertyId,
+          userId: message.userId,
+          timestamp: message.timestamp,
+          type: 'message'
+        },
+        { $set: { isDeleted: true } }
+      );
+
+      // Broadcast deletion to property group
+      this.broadcastToPropertyGroup({
+        ...message,
+        type: 'delete'
+      });
+    } catch (error) {
+      log('Error in handleDeleteMessage:', error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }

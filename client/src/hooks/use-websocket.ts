@@ -3,7 +3,7 @@ import { useAuth } from './use-auth';
 import { useToast } from './use-toast';
 
 interface ChatMessage {
-  type: 'message' | 'join' | 'leave' | 'history';
+  type: 'message' | 'join' | 'leave' | 'history' | 'delete';
   userId: number;
   username: string;
   content: string;
@@ -34,6 +34,7 @@ export function useWebSocket(propertyId: number) {
 
     console.log('Connecting to WebSocket at:', wsUrl);
 
+    // Use native WebSocket to ensure cookie passing
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
@@ -95,7 +96,7 @@ export function useWebSocket(propertyId: number) {
           clearTimeout(reconnectTimeoutRef.current);
         }
 
-        // Set new reconnection timeout
+        // Set new reconnection timeout with exponential backoff
         reconnectTimeoutRef.current = setTimeout(() => {
           if (wsRef.current === null) { // Only reconnect if still disconnected
             connect();
@@ -143,19 +144,19 @@ export function useWebSocket(propertyId: number) {
   }, [connect]);
 
   const sendMessage = useCallback(
-    (content: string) => {
+    (content: string, type: 'message' | 'delete' = 'message', timestamp?: number | string) => {
       if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !user || !propertyId) {
         console.warn('Cannot send message: WebSocket not connected or missing user/propertyId');
         return;
       }
 
       const message: ChatMessage = {
-        type: 'message',
+        type,
         userId: user.id,
         username: user.username,
         content,
         propertyId,
-        timestamp: Date.now(),
+        timestamp: timestamp ? Number(timestamp) : Date.now(),
       };
 
       wsRef.current.send(JSON.stringify(message));

@@ -4,27 +4,46 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { SendHorizontal, UserCircle2 } from "lucide-react";
+import { 
+  SendHorizontal, 
+  UserCircle2, 
+  MoreVertical, 
+  Trash2, 
+  Pencil,
+  X 
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface ChatMessage {
-  type: 'message' | 'join' | 'leave' | 'history';
+  type: 'message' | 'join' | 'leave' | 'history' | 'delete';
   userId: number;
   username: string;
   content: string;
   propertyId: number;
   timestamp: number | string;
+  isDeleted?: boolean;
   messages?: ChatMessage[]; // For history type
 }
 
 interface ChatWindowProps {
   propertyId: number;
   propertyName: string;
+  onRename?: (newName: string) => void;
 }
 
-export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
+export function ChatWindow({ propertyId, propertyName, onRename }: ChatWindowProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newGroupName, setNewGroupName] = useState(propertyName);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { sendMessage } = useWebSocket(propertyId);
 
@@ -49,6 +68,18 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
     }
   };
 
+  const handleDeleteMessage = (messageTimestamp: number | string) => {
+    if (!user) return;
+    sendMessage('', 'delete', messageTimestamp);
+  };
+
+  const handleRenameGroup = () => {
+    if (newGroupName.trim() && newGroupName !== propertyName) {
+      onRename?.(newGroupName.trim());
+    }
+    setIsRenaming(false);
+  };
+
   // Handle incoming messages
   useEffect(() => {
     const handleWebSocketMessage = (event: MessageEvent) => {
@@ -71,6 +102,14 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
               m.content === message.content && 
               m.timestamp === message.timestamp
             );
+
+            if (message.type === 'delete') {
+              // Mark message as deleted
+              return prev.map(m => 
+                m.timestamp === message.timestamp ? { ...m, isDeleted: true } : m
+              );
+            }
+
             return isDuplicate ? prev : [...prev, message];
           });
         }
@@ -95,8 +134,21 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
 
   return (
     <div className="flex flex-col h-[600px] border rounded-lg">
-      <div className="p-4 border-b bg-muted">
+      <div className="p-4 border-b bg-muted flex items-center justify-between">
         <h3 className="font-semibold">{propertyName} Chat</h3>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setIsRenaming(true)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Rename Chat
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <ScrollArea className="flex-grow p-4">
@@ -114,7 +166,7 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
                   message.userId === user?.id
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted'
-                }`}
+                } ${message.isDeleted ? 'opacity-50' : ''}`}
               >
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-medium text-sm">
@@ -123,8 +175,20 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
                   <span className="text-xs text-muted-foreground">
                     {new Date(message.timestamp).toLocaleTimeString()}
                   </span>
+                  {message.userId === user?.id && !message.isDeleted && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-4 w-4 ml-auto"
+                      onClick={() => handleDeleteMessage(message.timestamp)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
-                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                <p className="text-sm whitespace-pre-wrap">
+                  {message.isDeleted ? 'This message was deleted' : message.content}
+                </p>
               </div>
             </div>
           ))}
@@ -146,6 +210,33 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
           </Button>
         </div>
       </div>
+
+      <Dialog open={isRenaming} onOpenChange={setIsRenaming}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Chat</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Chat Name</Label>
+              <Input
+                id="name"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="Enter new chat name"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRenaming(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRenameGroup}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
