@@ -58,12 +58,13 @@ export function useWebSocket(propertyId: number) {
         try {
           const data = event.data;
           const message = typeof data === 'string' ? JSON.parse(data) : data;
-          console.log('Received message:', message);
 
           if (!message || !message.type) {
             console.warn('Received invalid message format:', message);
             return;
           }
+
+          console.log('Received message:', message);
 
           // Post message to window event system
           window.postMessage(message, window.location.origin);
@@ -108,11 +109,6 @@ export function useWebSocket(propertyId: number) {
           });
         }
       };
-
-      // Enable ping/pong
-      ws.addEventListener('ping', () => {
-        ws.pong();
-      });
 
       wsRef.current = ws;
     } catch (error) {

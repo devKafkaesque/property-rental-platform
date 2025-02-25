@@ -27,11 +27,10 @@ class ChatServer {
   private propertyGroups: Map<number, Set<number>> = new Map();
 
   constructor(server: Server) {
-    const wss = new WebSocketServer({ 
+    const wss = new WebSocketServer({
       server,
       path: '/ws/chat',
       clientTracking: true,
-      perMessageDeflate: false,
       verifyClient: async (info, callback) => {
         try {
           // Log connection attempt details
@@ -39,7 +38,8 @@ class ChatServer {
             url: info.req.url,
             headers: info.req.headers,
             origin: info.origin,
-            secure: info.req.socket.encrypted
+            secure: info.req.socket.encrypted,
+            cookies: info.req.headers.cookie ? parse(info.req.headers.cookie) : {}
           });
 
           // For now, allow all connections for debugging
@@ -51,20 +51,25 @@ class ChatServer {
       }
     });
 
-    wss.on('connection', async (ws: WebSocket, req: any) => {
+    wss.on('connection', async (ws: WebSocket) => {
       log('New WebSocket connection established');
 
       ws.on('message', async (data: string) => {
         try {
           const message = JSON.parse(data) as ChatMessageData;
-          log('Received message:', message);
+          log('Received message:', {
+            type: message.type,
+            userId: message.userId,
+            propertyId: message.propertyId,
+            timestamp: message.timestamp
+          });
           await this.handleMessage(ws, message);
         } catch (error) {
           log('Error handling message:', error instanceof Error ? error.message : 'Unknown error');
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ 
-              type: 'error', 
-              content: 'Failed to process message' 
+            ws.send(JSON.stringify({
+              type: 'error',
+              content: 'Failed to process message'
             }));
           }
         }
@@ -74,27 +79,32 @@ class ChatServer {
         log('WebSocket error:', error instanceof Error ? error.message : 'Unknown error');
       });
 
-      ws.on('close', (code, reason) => {
-        log('WebSocket closed:', { code, reason });
+      ws.on('close', () => {
         this.handleDisconnect(ws);
+      });
+
+      // Add ping/pong for connection health check
+      (ws as any).isAlive = true;
+      ws.on('pong', () => {
+        (ws as any).isAlive = true;
       });
     });
 
-    wss.on('error', (error) => {
-      log('WebSocket server error:', error instanceof Error ? error.message : 'Unknown error');
-    });
-
-    // Heartbeat mechanism to detect stale connections
-    setInterval(() => {
+    // Heartbeat to check connection health
+    const interval = setInterval(() => {
       wss.clients.forEach((ws) => {
         if ((ws as any).isAlive === false) {
-          log('Terminating inactive WebSocket connection');
+          log('Terminating inactive connection');
           return ws.terminate();
         }
         (ws as any).isAlive = false;
         ws.ping();
       });
     }, 30000);
+
+    wss.on('close', () => {
+      clearInterval(interval);
+    });
   }
 
   private async handleMessage(ws: WebSocket, message: ChatMessageData) {
@@ -106,14 +116,6 @@ class ChatServer {
         }
         return;
       }
-
-      // Log received message for debugging
-      log('Handling message:', {
-        type: message.type,
-        userId: message.userId,
-        propertyId: message.propertyId,
-        timestamp: message.timestamp
-      });
 
       switch (message.type) {
         case 'join':
@@ -137,75 +139,15 @@ class ChatServer {
     }
   }
 
-  private async handleDeleteMessage(message: ChatMessageData) {
-    try {
-      const timestamp = new Date(message.timestamp);
-      log('Looking for message to delete:', {
-        propertyId: message.propertyId,
-        userId: message.userId,
-        timestamp: timestamp
-      });
-
-      // Find the original message
-      const originalMessage = await ChatMessage.findOne({ 
-        propertyId: message.propertyId,
-        userId: message.userId,
-        type: 'message',
-        timestamp: timestamp
-      });
-
-      if (!originalMessage) {
-        log('Message not found for deletion');
-        if (message.userId && this.clients.get(message.userId)) {
-          this.clients.get(message.userId)!.ws.send(JSON.stringify({
-            type: 'error',
-            content: 'Message not found or unauthorized to delete'
-          }));
-        }
-        return;
-      }
-
-      // Update message in MongoDB
-      await ChatMessage.findOneAndUpdate(
-        { _id: originalMessage._id },
-        { 
-          $set: { 
-            isDeleted: true,
-            content: 'This message was deleted'
-          } 
-        }
-      );
-
-      // Broadcast deletion to property group
-      this.broadcastToPropertyGroup({
-        type: 'delete',
-        userId: message.userId,
-        username: message.username,
-        content: 'This message was deleted',
-        propertyId: message.propertyId,
-        timestamp: originalMessage.timestamp
-      });
-    } catch (error) {
-      log('Error in handleDeleteMessage:', error instanceof Error ? error.message : 'Unknown error');
-      if (message.userId && this.clients.get(message.userId)) {
-        this.clients.get(message.userId)!.ws.send(JSON.stringify({
-          type: 'error',
-          content: 'Failed to delete message'
-        }));
-      }
-      throw error;
-    }
-  }
-
   private async handleJoin(ws: WebSocket, message: ChatMessageData & { role: 'tenant' | 'landowner' }) {
     try {
       const existingClient = this.clients.get(message.userId);
       if (existingClient) {
         if (existingClient.ws.readyState === WebSocket.OPEN) {
+          log('Client already connected, skipping join');
           return;
-        } else {
-          this.clients.delete(message.userId);
         }
+        this.clients.delete(message.userId);
       }
 
       const client: ChatClient = {
@@ -222,10 +164,10 @@ class ChatServer {
       }
       this.propertyGroups.get(message.propertyId)!.add(message.userId);
 
-      // Load and send previous messages
+      // Load and send chat history
       const previousMessages = await ChatMessage.find({ propertyId: message.propertyId })
         .sort({ timestamp: -1 })
-        .limit(50)
+        .limit(100)
         .lean();
 
       if (ws.readyState === WebSocket.OPEN) {
@@ -236,23 +178,24 @@ class ChatServer {
       }
 
       // Save join message
-      await new ChatMessage({
+      const joinMessage = new ChatMessage({
         type: 'join',
         userId: message.userId,
         username: message.username,
         content: `${message.username} joined the chat`,
         propertyId: message.propertyId,
         timestamp: new Date()
-      }).save();
+      });
+      await joinMessage.save();
 
-      // Notify others
+      // Broadcast join
       this.broadcastToPropertyGroup({
         type: 'join',
         userId: message.userId,
         username: message.username,
         content: `${message.username} joined the chat`,
         propertyId: message.propertyId,
-        timestamp: Date.now()
+        timestamp: joinMessage.timestamp
       });
     } catch (error) {
       log('Error in handleJoin:', error instanceof Error ? error.message : 'Unknown error');
@@ -262,18 +205,62 @@ class ChatServer {
 
   private async handleChatMessage(message: ChatMessageData) {
     try {
-      await new ChatMessage({
+      const chatMessage = new ChatMessage({
         type: 'message',
         userId: message.userId,
         username: message.username,
         content: message.content,
         propertyId: message.propertyId,
         timestamp: new Date()
-      }).save();
+      });
+      await chatMessage.save();
 
-      this.broadcastToPropertyGroup(message);
+      this.broadcastToPropertyGroup({
+        ...message,
+        timestamp: chatMessage.timestamp
+      });
     } catch (error) {
       log('Error in handleChatMessage:', error instanceof Error ? error.message : 'Unknown error');
+      throw error;
+    }
+  }
+
+  private async handleDeleteMessage(message: ChatMessageData) {
+    try {
+      const timestamp = new Date(message.timestamp);
+
+      // Find and update the message
+      const originalMessage = await ChatMessage.findOneAndUpdate(
+        {
+          propertyId: message.propertyId,
+          userId: message.userId,
+          timestamp: timestamp,
+          type: 'message'
+        },
+        {
+          $set: {
+            isDeleted: true,
+            content: 'This message was deleted'
+          }
+        }
+      );
+
+      if (!originalMessage) {
+        log('Message not found for deletion');
+        return;
+      }
+
+      // Broadcast deletion
+      this.broadcastToPropertyGroup({
+        type: 'delete',
+        userId: message.userId,
+        username: message.username,
+        content: 'This message was deleted',
+        propertyId: message.propertyId,
+        timestamp: originalMessage.timestamp
+      });
+    } catch (error) {
+      log('Error in handleDeleteMessage:', error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }
@@ -284,14 +271,15 @@ class ChatServer {
         this.propertyGroups.get(message.propertyId)!.delete(message.userId);
         this.clients.delete(message.userId);
 
-        await new ChatMessage({
+        const leaveMessage = new ChatMessage({
           type: 'leave',
           userId: message.userId,
           username: message.username,
           content: `${message.username} left the chat`,
           propertyId: message.propertyId,
           timestamp: new Date()
-        }).save();
+        });
+        await leaveMessage.save();
 
         this.broadcastToPropertyGroup({
           type: 'leave',
@@ -299,7 +287,7 @@ class ChatServer {
           username: message.username,
           content: `${message.username} left the chat`,
           propertyId: message.propertyId,
-          timestamp: Date.now()
+          timestamp: leaveMessage.timestamp
         });
       }
     } catch (error) {
@@ -311,6 +299,7 @@ class ChatServer {
   private handleDisconnect(ws: WebSocket) {
     for (const [userId, client] of this.clients.entries()) {
       if (client.ws === ws) {
+        log('Client disconnected:', userId);
         this.clients.delete(userId);
         for (const [propertyId, members] of this.propertyGroups.entries()) {
           if (members.has(userId)) {
@@ -328,12 +317,27 @@ class ChatServer {
     const members = this.propertyGroups.get(message.propertyId)!;
     const messageStr = JSON.stringify(message);
 
-    for (const userId of members) {
+    log('Broadcasting message:', {
+      type: message.type,
+      propertyId: message.propertyId,
+      receivers: Array.from(members),
+      activeClients: Array.from(this.clients.keys())
+    });
+
+    members.forEach(userId => {
       const client = this.clients.get(userId);
       if (client && client.ws.readyState === WebSocket.OPEN) {
-        client.ws.send(messageStr);
+        try {
+          client.ws.send(messageStr);
+          log('Message sent to:', { userId, role: client.role });
+        } catch (error) {
+          log('Failed to send message to client:', {
+            userId,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+        }
       }
-    }
+    });
   }
 }
 
