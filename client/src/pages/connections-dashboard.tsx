@@ -3,7 +3,7 @@ import { Property, TenantContract } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,6 +69,26 @@ export default function ConnectionsDashboard() {
     enabled: !!user && user.role === "landowner",
   });
 
+  //For tenants: fetch their contracts
+  const { data: myContracts, isLoading: myContractsLoading } = useQuery<TenantContract[]>({
+    queryKey: ["/api/tenant-contracts/tenant"],
+    enabled: !!user && user.role === "tenant",
+  });
+
+  // Tenant self-disconnect mutation
+  const disconnectTenantMutation = useMutation({
+    mutationFn: async (propertyId: number) => {
+      await apiRequest("POST", `/api/properties/${propertyId}/disconnect`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tenant-contracts/tenant"] });
+      toast({
+        title: "Success",
+        description: "Successfully disconnected from property.",
+      });
+    },
+  });
+
   // Request deposit return mutation
   const requestDepositMutation = useMutation({
     mutationFn: async (propertyId: number) => {
@@ -101,7 +121,7 @@ export default function ConnectionsDashboard() {
   });
 
   // Modified disconnect mutation for landowners
-  const disconnectTenantMutation = useMutation({
+  const disconnectTenantMutationLandowner = useMutation({
     mutationFn: async (data: {
       propertyId: number;
       contractId: number;
@@ -134,7 +154,7 @@ export default function ConnectionsDashboard() {
     },
   });
 
-  if (propertiesLoading || contractsLoading) {
+  if (propertiesLoading || contractsLoading || myContractsLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -321,6 +341,113 @@ export default function ConnectionsDashboard() {
           </div>
         )}
 
+        {user?.role === "tenant" && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-semibold">Your Connected Properties</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {myContracts?.map((contract) => {
+                const property = properties?.find(p => p.id === contract.propertyId);
+                if (!property) return null;
+
+                const PropertyIcon = getPropertyIcon(property.type, property.category);
+                const isActiveConnection = contract.contractStatus === "active";
+
+                return (
+                  <Card key={contract.id} className="flex flex-col">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <PropertyIcon className="h-5 w-5" />
+                          <CardTitle className="text-lg">{property.name}</CardTitle>
+                        </div>
+                        <span className={`
+                          px-2 py-1 rounded-full text-sm
+                          ${contract.contractStatus === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
+                        `}>
+                          {contract.contractStatus}
+                        </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex-grow">
+                      <div className="space-y-4">
+                        <p className="text-sm text-muted-foreground">{property.address}</p>
+                        <div className="flex items-center space-x-2">
+                          <LinkIcon className="h-4 w-4" />
+                          <span>Connected since {new Date(contract.startDate).toLocaleDateString()}</span>
+                        </div>
+
+                        {/* Deposit Status and Actions */}
+                        <div className="flex items-center space-x-2">
+                          <Wallet className="h-4 w-4" />
+                          <span>
+                            Deposit Status: {
+                              contract.depositRequested
+                                ? contract.depositReturnStatus === "pending"
+                                  ? "Return Requested"
+                                  : `Return ${contract.depositReturnStatus}`
+                                : contract.depositPaid
+                                  ? "Paid"
+                                  : "Not Paid"
+                            }
+                          </span>
+                        </div>
+
+                        {contract.contractStatus === "active" && !contract.depositRequested && (
+                          <Button
+                            variant="outline"
+                            className="w-full mt-4 flex items-center justify-center gap-2"
+                            onClick={() => {
+                              if (window.confirm("Are you sure you want to request your deposit return? This action cannot be undone.")) {
+                                requestDepositMutation.mutate(property.id);
+                              }
+                            }}
+                          >
+                            <Wallet className="h-4 w-4" />
+                            Request Deposit Return
+                          </Button>
+                        )}
+
+                        {/* Maintenance Section */}
+                        <div className="border-t pt-4">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <WrenchIcon className="h-4 w-4" />
+                            <h3 className="font-medium">Maintenance</h3>
+                          </div>
+                          {contract.contractStatus === "active" && (
+                            <MaintenanceRequestForm propertyId={property.id} />
+                          )}
+                          <div className="mt-4">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <ClipboardList className="h-4 w-4" />
+                              <h3 className="font-medium">Request History</h3>
+                            </div>
+                            <MaintenanceRequestList propertyId={property.id} contractId={contract.id} />
+                          </div>
+                        </div>
+
+                        {contract.contractStatus === "active" && (
+                          <Button
+                            variant="outline"
+                            className="w-full mt-4 flex items-center justify-center gap-2"
+                            onClick={() => {
+                              if (window.confirm("Are you sure you want to disconnect from this property?")) {
+                                disconnectTenantMutation.mutate(property.id);
+                              }
+                            }}
+                          >
+                            <UserX className="h-4 w-4" />
+                            Disconnect from Property
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Disconnect Dialog */}
         <Dialog open={disconnectDialog.isOpen} onOpenChange={(open) => setDisconnectDialog({ isOpen: open })}>
           <DialogContent>
@@ -367,7 +494,7 @@ export default function ConnectionsDashboard() {
                   variant="destructive"
                   onClick={() => {
                     if (disconnectDialog.propertyId && disconnectDialog.contractId) {
-                      disconnectTenantMutation.mutate({
+                      disconnectTenantMutationLandowner.mutate({
                         propertyId: disconnectDialog.propertyId,
                         contractId: disconnectDialog.contractId,
                         reason: disconnectReason,
@@ -375,9 +502,9 @@ export default function ConnectionsDashboard() {
                       });
                     }
                   }}
-                  disabled={!disconnectReason.trim() || disconnectTenantMutation.isPending}
+                  disabled={!disconnectReason.trim() || disconnectTenantMutationLandowner.isPending}
                 >
-                  {disconnectTenantMutation.isPending ? "Disconnecting..." : "Confirm Disconnection"}
+                  {disconnectTenantMutationLandowner.isPending ? "Disconnecting..." : "Confirm Disconnection"}
                 </Button>
               </div>
             </div>
