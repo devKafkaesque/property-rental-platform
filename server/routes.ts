@@ -454,7 +454,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add this route after the other maintenance request routes
+  // Add this new route after the other maintenance request routes
   app.get("/api/maintenance-requests/all", ensureLandowner, async (req, res) => {
     try {
       // Get all properties owned by the landlord
@@ -651,6 +651,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If no more active contracts, set property as available
       if (!hasActiveContracts) {
+        console.log(`No active contracts for property ${propertyId}, setting status to available`);
         await storage.updateProperty(propertyId, {
           status: "available" as const
         });
@@ -819,6 +820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // If no more active contracts, set property as available
       if (!hasActiveContracts) {
+        console.log(`No active contracts for property ${propertyId}, setting status to available`);
         await storage.updateProperty(propertyId, {
           status: "available" as const
         });
