@@ -156,19 +156,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Property routes
   app.post("/api/properties", ensureLandowner, async (req, res) => {
-    const data = insertPropertySchema.parse(req.body);
-    const property = await storage.createProperty({
-      ...data,
-      ownerId: req.user!.id,
-      status: "available",
-      maintainanceHistory: [], // Initialize empty maintenance history
-    });
-    res.json(property);
+    try {
+      const data = insertPropertySchema.parse(req.body);
+      console.log('Creating property with data:', {
+        ...data,
+        ownerId: req.user!.id,
+        status: "available"
+      });
+
+      const property = await storage.createProperty({
+        ...data,
+        ownerId: req.user!.id,
+        status: "available",
+        maintainanceHistory: [],
+      });
+
+      console.log('Created property:', property);
+      res.json(property);
+    } catch (error) {
+      console.error('Error creating property:', error);
+      res.status(500).json({ error: "Failed to create property" });
+    }
   });
 
   app.get("/api/properties", async (req, res) => {
-    const properties = await storage.getProperties();
-    res.json(properties);
+    try {
+      const properties = await storage.getProperties();
+      console.log('Retrieved properties:', properties);
+      res.json(properties);
+    } catch (error) {
+      console.error('Error getting properties:', error);
+      res.status(500).json({ error: "Failed to get properties" });
+    }
   });
 
   app.get("/api/properties/:id", async (req, res) => {
