@@ -452,6 +452,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add these routes after the existing maintenance request routes
+  app.post("/api/maintenance-requests/:id/update", ensureLandowner, async (req, res) => {
+    try {
+      const { status, landlordNotes } = req.body;
+
+      // Validate the new status
+      if (!["in_progress", "needs_review"].includes(status)) {
+        return res.status(400).json({ error: "Invalid status update" });
+      }
+
+      const request = await storage.updateMaintenanceRequest(Number(req.params.id), {
+        status,
+        landlordNotes,
+        updatedAt: new Date()
+      });
+
+      res.json(request);
+    } catch (error) {
+      console.error('Error updating maintenance request:', error);
+      res.status(500).json({ error: "Failed to update maintenance request" });
+    }
+  });
+
+  app.post("/api/maintenance-requests/:id/review", ensureAuthenticated, async (req, res) => {
+    try {
+      const request = await storage.getMaintenanceRequestById(Number(req.params.id));
+
+      if (!request) {
+        return res.status(404).json({ error: "Request not found" });
+      }
+
+      if (request.tenantId !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const { status, tenantReview } = req.body;
+
+      // Only allow completing or cancelling the request
+      if (!["completed", "cancelled"].includes(status)) {
+        return res.status(400).json({ error: "Invalid status update" });
+      }
+
+      const updatedRequest = await storage.updateMaintenanceRequest(Number(req.params.id), {
+        status,
+        tenantReview,
+        completedAt: status === "completed" ? new Date() : null,
+        updatedAt: new Date()
+      });
+
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error('Error reviewing maintenance request:', error);
+      res.status(500).json({ error: "Failed to review maintenance request" });
+    }
+  });
+
   // AI routes
   app.post("/api/ai/description", async (req, res) => {
     try {

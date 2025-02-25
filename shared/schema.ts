@@ -201,12 +201,12 @@ export type InsertProperty = z.infer<typeof insertPropertySchema>;
 
 // Add new enums for maintenance requests
 export const MaintenancePriority = z.enum(["low", "medium", "high", "emergency"]);
-export const MaintenanceStatus = z.enum(["pending", "in_progress", "completed", "cancelled"]);
+export const MaintenanceStatus = z.enum(["pending", "in_progress", "completed", "cancelled", "needs_review", "reviewed"]);
 
 export type MaintenancePriority = z.infer<typeof MaintenancePriority>;
 export type MaintenanceStatus = z.infer<typeof MaintenanceStatus>;
 
-// Add maintenance requests table
+// Update maintenance requests table
 export const maintenanceRequests = pgTable("maintenance_requests", {
   id: serial("id").primaryKey(),
   propertyId: integer("property_id").notNull(),
@@ -219,6 +219,8 @@ export const maintenanceRequests = pgTable("maintenance_requests", {
   completedAt: timestamp("completed_at"),
   notes: text("notes"),
   images: text("images").array().default([]),
+  landlordNotes: text("landlord_notes"),
+  tenantReview: text("tenant_review"),
 });
 
 export const insertMaintenanceRequestSchema = createInsertSchema(maintenanceRequests).pick({
