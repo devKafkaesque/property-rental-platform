@@ -84,14 +84,21 @@ export class MongoStorage implements IStorage {
 
   async getPropertiesByOwner(ownerId: number): Promise<Property[]> {
     try {
+      // Validate and normalize owner ID
       if (typeof ownerId !== 'number' || isNaN(ownerId)) {
-        console.error('Invalid ownerId:', ownerId);
-        return [];
+        console.error('Invalid ownerId input:', { ownerId, type: typeof ownerId });
+        throw new Error('Invalid owner ID');
       }
 
-      console.log('Querying properties for owner:', ownerId);
-      const properties = await PropertyModel.find({ ownerId: Number(ownerId) });
-      console.log(`Found ${properties.length} properties for owner ${ownerId}`);
+      console.log('Querying properties with owner ID:', ownerId);
+
+      const properties = await PropertyModel.find({ 
+        ownerId: ownerId 
+      }).exec();
+
+      console.log(`Found ${properties.length} properties:`, 
+        properties.map(p => ({ id: p.id, name: p.name }))
+      );
 
       return properties.map(prop => prop.toObject());
     } catch (error) {

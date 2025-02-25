@@ -750,6 +750,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  //This is the updated endpoint
+  app.get("/api/properties/owner/chats", ensureAuthenticated, async (req, res) => {
+    try {
+      if (req.user!.role !== "landowner") {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Ensure valid user ID
+      if (!req.user || !req.user.id) {
+        console.error('Missing or invalid user:', req.user);
+        return res.status(401).json({ error: "Invalid user session" });
+      }
+
+      const ownerId = Number(req.user.id);
+      if (isNaN(ownerId)) {
+        console.error('Invalid owner ID type:', req.user.id);
+        return res.status(400).json({ error: "Invalid owner ID" });
+      }
+
+      console.log('Fetching chat properties for owner:', ownerId, typeof ownerId);
+
+      // Get properties owned by the landowner
+      const properties = await storage.getPropertiesByOwner(ownerId);
+      console.log('Found landowner properties:', properties);
+
+      if (!properties || properties.length === 0) {
+        console.log('No properties found for landowner:', ownerId);
+        return res.json([]);
+      }
+
+      // Get active tenant contracts for these properties
+      const chatProperties = await Promise.all(
+        properties.map(async (property) => {
+          if (!property) return null;
+
+          const contracts = await storage.getTenantContractsByProperty(property.id);
+          console.log(`Contracts for property ${property.id}:`, contracts);
+
+          const activeContract = contracts.find(c => c.contractStatus === "active");
+          console.log(`Active contract for property ${property.id}:`, activeContract);
+
+          if (activeContract) {
+            const tenant = await storage.getUser(activeContract.tenantId);
+            console.log('Found active contract with tenant:', {
+              propertyId: property.id,
+              propertyName: property.name,
+              tenantId: activeContract.tenantId,
+              tenantName: tenant?.username
+            });
+
+            return {
+              id: property.id,
+              name: property.name,
+              otherPartyName: tenant?.username || "Unknown Tenant"
+            };
+          }
+          return null;
+        })
+      );
+
+      // Filter out null values and return active properties
+      const activeProperties = chatProperties.filter((prop): prop is NonNullable<typeof prop> => prop !== null);
+      console.log('Final chat properties:', activeProperties);
+
+      res.json(activeProperties);
+    } catch (error) {
+      console.error('Error fetching landowner chat properties:', error);
+      res.status(500).json({ error: "Failed to fetch chat properties" });
+    }
+  });
+
   app.post("/api/properties/:id/disconnect-tenant", ensureLandowner, async (req, res) => {
     try {
       const propertyId = Number(req.params.id);
@@ -849,10 +920,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      const ownerId = req.user!.id;
-      console.log('Fetching chat properties for owner:', ownerId);
+      // Ensure valid user ID
+      if (!req.user || !req.user.id) {
+        console.error('Missing or invalid user:', req.user);
+        return res.status(401).json({ error: "Invalid user session" });
+      }
 
-      // Get all properties owned by the landowner
+      const ownerId = Number(req.user.id);
+      if (isNaN(ownerId)) {
+        console.error('Invalid owner ID type:', req.user.id);
+        return res.status(400).json({ error: "Invalid owner ID" });
+      }
+
+      console.log('Fetching chat properties for owner:', ownerId, typeof ownerId);
+
+      // Get properties owned by the landowner
       const properties = await storage.getPropertiesByOwner(ownerId);
       console.log('Found landowner properties:', properties);
 
