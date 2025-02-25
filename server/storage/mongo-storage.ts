@@ -88,6 +88,16 @@ export class MongoStorage implements IStorage {
     return property.toObject();
   }
 
+  async updatePropertyConnectionCode(id: number, connectionCode: string): Promise<Property> {
+    const property = await PropertyModel.findOneAndUpdate(
+      { id },
+      { $set: { connectionCode } },
+      { new: true }
+    );
+    if (!property) throw new Error("Property not found");
+    return property.toObject();
+  }
+
   // Booking operations
   async createBooking(booking: Omit<Booking, "id" | "createdAt" | "status">): Promise<Booking> {
     const lastBooking = await BookingModel.findOne().sort({ id: -1 });
