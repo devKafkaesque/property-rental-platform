@@ -843,5 +843,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/properties/owner/chats", ensureAuthenticated, async (req, res) => {
+    try {
+      if (req.user!.role !== "landowner") {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get properties owned by the landowner
+      const properties = await storage.getPropertiesByOwner(req.user!.id);
+
+      // Get all active tenant contracts for these properties
+      const allContracts = await Promise.all(
+        properties.map(async (property) => {
+          const contracts = await storage.getTenantContractsByProperty(property.id);
+          return {
+            property,
+            activeContract: contracts.find(c => c.contractStatus === "active")
+          };
+        })
+      );
+
+      // Filter and format properties that have active tenants
+      const chatProperties = await Promise.all(
+        allContracts
+          .filter(({ activeContract }) => activeContract)
+          .map(async ({ property, activeContract }) => {
+            const tenant = await storage.getUser(activeContract!.tenantId);
+            return {
+              id: property.id,
+              name: property.name,              otherPartyName: tenant?.username || "Unknown Tenant"
+            };
+          })
+      );
+
+      res.json(chatProperties);
+    } catch (error) {
+      console.error('Error fetching landowner chat properties:', error);
+      res.status(500).json({ error: "Failed to fetch chat properties" });
+    }
+  });
+
+  app.get("/api/properties/tenant/chats", ensureAuthenticated, async (req, res) => {
+    try {
+      if (req.user!.role !== "tenant") {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Get active contracts for the tenant
+      const contracts = await storage.getTenantContractsByTenant(req.user!.id);
+      const activeContracts = contracts.filter(c => c.contractStatus === "active");
+
+      // Get property and landowner details for each active contract
+      const chatProperties = await Promise.all(
+        activeContracts.map(async (contract) => {
+          const property = await storage.getPropertyById(contract.propertyId);
+          const landowner = await storage.getUser(contract.landownerId);
+
+          if (!property) return null;
+
+          return {
+            id: property.id,
+            name: property.name,
+            otherPartyName: landowner?.username || "Unknown Landowner"
+          };
+        })
+      );
+
+      // Filter out any null values from properties that weren't found
+      res.json(chatProperties.filter(Boolean));
+    } catch (error) {
+      console.error('Error fetching tenant chat properties:', error);
+      res.status(500).json({ error: "Failed to fetch chat properties" });
+    }
+  });
+
   return httpServer;
+
 }
