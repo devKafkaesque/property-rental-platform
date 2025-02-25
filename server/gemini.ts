@@ -11,7 +11,7 @@ async function generateContent(prompt: string) {
     const response = result.response;
     const text = response.text();
     console.log('Received response from Gemini API:', text);
-    return text;
+    return text.replace(/```json\n|\n```/g, '').trim(); // Remove markdown formatting
   } catch (error) {
     console.error('Gemini API Error:', error);
     throw error;
@@ -31,8 +31,8 @@ export async function compareProperties(properties: Property[]) {
       Square Footage: ${p.squareFootage}
     `).join('\n\n');
 
-    const prompt = `Compare these properties:\n${propertyDescriptions}\n\n` +
-      'Return a simple analysis in JSON format:\n' +
+    const prompt = `Compare these properties and return a simple JSON object (no markdown, no code blocks):\n${propertyDescriptions}\n\n` +
+      'Return properties analysis as JSON:\n' +
       '{\n' +
       '  "properties": {\n' +
       '    "[property_id]": {\n' +
@@ -48,6 +48,7 @@ export async function compareProperties(properties: Property[]) {
       return JSON.parse(response);
     } catch (error) {
       console.error('Error parsing comparison response:', error);
+      // Fallback response on parse error
       return {
         properties: properties.reduce((acc, p) => ({
           ...acc,
@@ -74,7 +75,7 @@ export async function generatePropertyDescription(details: {
   amenities?: string[];
 }) {
   try {
-    const prompt = `Generate a short property description with this JSON format:\n` +
+    const prompt = `Give a property description as a plain JSON object (no markdown):\n\n` +
       '{\n' +
       '  "description": "brief property description",\n' +
       '  "highlights": ["key point 1", "key point 2"],\n' +
@@ -107,8 +108,8 @@ export async function analyzePricing(details: {
   amenities?: string[];
 }) {
   try {
-    const prompt = `Analyze pricing for this property:\n${JSON.stringify(details, null, 2)}\n\n` +
-      'Provide brief analysis in JSON format:\n' +
+    const prompt = `Analyze this property and return a plain JSON object (no markdown):\n${JSON.stringify(details, null, 2)}\n\n` +
+      'Return pricing analysis as JSON:\n' +
       '{\n' +
       '  "suggestedPrice": 2000,\n' +
       '  "priceRange": { "min": 1800, "max": 2200 },\n' +

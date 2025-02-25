@@ -1,0 +1,71 @@
+6:22:48 PM [express] GET /api/maintenance-requests/property/3 304 in 1152ms :: [{"_id":"67bde9e5169d…
+Starting property comparison...
+Sending request to Gemini API with prompt: Compare these properties:
+
+      Property: Taj Mahal
+      Type: villa
+      Location: Agra, Uttar Pradesh
+      Price: $2000
+      Bedrooms: 4
+      Bathrooms: 9
+      Square Footage: 25000
+    
+
+
+      Property: Qutub Minar
+      Type: house
+      Location: New Delhi, Delhi
+      Price: $2333
+      Bedrooms: 4
+      Bathrooms: 4
+      Square Footage: 20000
+    
+
+Return a simple analysis in JSON format:
+{
+  "properties": {
+    "[property_id]": {
+      "pros": ["advantage1", "advantage2"],
+      "cons": ["consideration1", "consideration2"],
+      "bestFor": "ideal tenant description"
+    }
+  }
+}
+Received response from Gemini API: ```json
+{
+  "properties": {
+    "Taj Mahal": {
+      "pros": [
+        "More bathrooms (9 vs 4)",
+        "Larger square footage (25000 vs 20000)"
+      ],
+      "cons": [
+        "Potentially less desirable location (Agra vs New Delhi - depends on preference)",
+        "Higher price (slightly, $2000 vs $2333)",
+        "Type is Villa"
+      ],
+      "bestFor": "A family or group that values spaciousness, multiple bathrooms, and is willing to live in Agra. Potential for a larger family or those who host guests frequently."
+    },
+    "Qutub Minar": {
+      "pros": [
+        "Potentially more desirable location (New Delhi vs Agra - depends on preference)",
+        "Potentially less expensive (slightly, $2333 vs $2000)",
+        "Type is House"
+      ],
+      "cons": [
+        "Fewer bathrooms (4 vs 9)",
+        "Smaller square footage (20000 vs 25000)"
+      ],
+      "bestFor": "A family or group that values a New Delhi location, doesn't need as many bathrooms, and prefers a house."
+    }
+  }
+}
+```
+Error parsing comparison response: SyntaxError: Unexpected token '`', "```json
+{
+"... is not valid JSON
+    at JSON.parse (<anonymous>)
+    at compareProperties (/home/runner/workspace/server/gemini.ts:48:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:707:28)
+6:22:56 PM [express] POST /api/properties/compare 200 in 3172ms :: {"properties":{"1":{"pros":["Good…
