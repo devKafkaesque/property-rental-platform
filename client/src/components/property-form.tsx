@@ -40,8 +40,8 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
       condition: "",
       category: "standard",
       images: [],
-      rentPrice: 0, 
-      depositAmount: 0, 
+      rentPrice: 0,
+      depositAmount: 0,
     },
   });
 
@@ -82,7 +82,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
 
     const formData = new FormData();
     selectedImages.forEach(file => {
-      formData.append('images', file); 
+      formData.append('images', file);
     });
 
     try {
@@ -107,22 +107,34 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
   const createPropertyMutation = useMutation({
     mutationFn: async (data: any) => {
       try {
-        const imageUrls = await uploadImages();
+        console.log('Submitting property data:', data); 
+
+        let imageUrls: string[] = [];
+        if (selectedImages.length > 0) {
+          console.log('Uploading images...'); 
+          imageUrls = await uploadImages();
+        }
+
         const propertyData = {
           ...data,
           images: imageUrls,
-          rentPrice: Number(data.rentPrice), 
-          depositAmount: Number(data.depositAmount), 
+          rentPrice: Number(data.rentPrice),
+          depositAmount: Number(data.depositAmount),
         };
+
+        console.log('Final property data:', propertyData); 
+
         const res = await apiRequest("POST", "/api/properties", propertyData);
         if (!res.ok) {
-          throw new Error("Failed to create property");
+          const errorData = await res.json();
+          throw new Error(errorData.error || "Failed to create property");
         }
         return res.json();
       } catch (error) {
+        console.error('Property creation error:', error); 
         toast({
           title: "Error",
-          description: "Failed to upload images or create property",
+          description: error instanceof Error ? error.message : "Failed to create property",
           variant: "destructive",
         });
         throw error;
@@ -131,7 +143,7 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/properties/owner/${user?.id}`] });
       toast({
-        title: "Property created",
+        title: "Success",
         description: "Your property has been listed successfully.",
       });
       onSuccess?.();
@@ -154,7 +166,10 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
 
       <Form {...form}>
         <form
-          onSubmit={form.handleSubmit((data) => createPropertyMutation.mutate(data))}
+          onSubmit={form.handleSubmit((data) => {
+            console.log('Form submitted with data:', data); 
+            createPropertyMutation.mutate(data);
+          })}
           className="space-y-4 mt-6"
         >
           <FormField
@@ -426,6 +441,14 @@ export default function PropertyForm({ onSuccess }: PropertyFormProps) {
               "Create Property"
             )}
           </Button>
+
+          {Object.keys(form.formState.errors).length > 0 && (
+            <div className="text-red-500 text-sm mt-2">
+              {Object.entries(form.formState.errors).map(([key, error]) => (
+                <p key={key}>{error.message}</p>
+              ))}
+            </div>
+          )}
         </form>
       </Form>
     </ScrollArea>
