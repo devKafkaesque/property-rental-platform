@@ -24,8 +24,6 @@ import {
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { useState } from "react";
-import { PropertyComparison } from "@/components/property-comparison";
-import { Checkbox } from "@/components/ui/checkbox";
 
 function getPropertyIcon(type: Property["type"], category: Property["category"]) {
   if (category === "luxury") return Castle;
@@ -50,8 +48,6 @@ export default function ConnectionsDashboard() {
   const [disconnectType, setDisconnectType] = useState<
     "contract_ended" | "tenant_request" | "violation" | "other"
   >("contract_ended");
-  const [selectedProperties, setSelectedProperties] = useState<number[]>([]);
-  const [showComparison, setShowComparison] = useState(false);
 
   const togglePropertyExpand = (propertyId: number) => {
     setExpandedProperties((prev) =>
@@ -241,24 +237,11 @@ export default function ConnectionsDashboard() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="container mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center mb-6">
           <Button variant="ghost" onClick={() => setLocation("/dashboard")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
           </Button>
-          {selectedProperties.length >= 2 ? (
-            <Button
-              onClick={() => setShowComparison(true)}
-              className="flex items-center gap-2"
-            >
-              <Building2 className="h-4 w-4" />
-              Compare Selected ({selectedProperties.length})
-            </Button>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Select at least 2 properties to compare
-            </p>
-          )}
         </div>
 
         <h1 className="text-3xl font-bold mb-6">Property Connections</h1>
@@ -288,7 +271,6 @@ export default function ConnectionsDashboard() {
                   (contract) => contract.contractStatus !== "active"
                 );
                 const isExpanded = expandedProperties.includes(property.id);
-
                 const contractsToShow = activeTab === "current" ? activeContracts : historicalContracts;
 
                 return (
@@ -303,17 +285,6 @@ export default function ConnectionsDashboard() {
                           <CardTitle className="text-lg">{property.name}</CardTitle>
                         </div>
                         <div className="flex items-center space-x-4">
-                          <Checkbox
-                            checked={selectedProperties.includes(property.id)}
-                            onCheckedChange={(checked) => {
-                              setSelectedProperties(prev =>
-                                checked
-                                  ? [...prev, property.id]
-                                  : prev.filter(id => id !== property.id)
-                              );
-                            }}
-                            className="ml-2"
-                          />
                           <div className="flex items-center">
                             <span className={`
                               px-2 py-1 rounded-full text-sm
@@ -340,7 +311,6 @@ export default function ConnectionsDashboard() {
                       {contractsToShow.length > 0 ? (
                         contractsToShow.map((contract) => (
                           activeTab === "current" ? (
-                            // Current tenants view with actions
                             <div key={contract.id} className="border rounded-lg p-4 space-y-4">
                               {renderContractHistory(contract)}
                               {contract.contractStatus === "active" && (
@@ -391,7 +361,6 @@ export default function ConnectionsDashboard() {
                               )}
                             </div>
                           ) : (
-                            // Historical view
                             <div key={contract.id} className="border rounded-lg p-4 space-y-4 bg-muted/10">
                               <div className="flex items-center gap-2 mb-2">
                                 <Clock className="h-4 w-4 text-muted-foreground" />
@@ -494,6 +463,7 @@ export default function ConnectionsDashboard() {
                             Disconnect from Property
                           </Button>
                         )}
+
                         {/* Maintenance History Section */}
                         <div className="border-t pt-4">
                           <div className="flex items-center space-x-2 mb-2">
@@ -580,16 +550,6 @@ export default function ConnectionsDashboard() {
                 </Button>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
-        {/* Add comparison dialog at the end of the component before the final closing tags */}
-        {/* Property Comparison Dialog */}
-        <Dialog open={showComparison} onOpenChange={setShowComparison}>
-          <DialogContent className="max-w-5xl">
-            <PropertyComparison
-              propertyIds={selectedProperties}
-              onClose={() => setShowComparison(false)}
-            />
           </DialogContent>
         </Dialog>
       </div>
