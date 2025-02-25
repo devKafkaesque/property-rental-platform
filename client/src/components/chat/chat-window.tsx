@@ -7,11 +7,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { SendHorizontal, UserCircle2 } from "lucide-react";
 
 interface ChatMessage {
-  type: 'message' | 'join' | 'leave';
+  type: 'message' | 'join' | 'leave' | 'history';
   userId: number;
   username: string;
   content: string;
   timestamp: number;
+  messages?: ChatMessage[]; // For history type
 }
 
 interface ChatWindowProps {
@@ -56,6 +57,27 @@ export function ChatWindow({ propertyId, propertyName }: ChatWindowProps) {
       handleSendMessage();
     }
   };
+
+  // Handle incoming messages
+  useEffect(() => {
+    const ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/chat`);
+
+    ws.onmessage = (event) => {
+      const message = JSON.parse(event.data) as ChatMessage;
+
+      if (message.type === 'history') {
+        // Handle history messages
+        setMessages(message.messages || []);
+      } else {
+        // Handle regular messages
+        setMessages(prev => [...prev, message]);
+      }
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [propertyId]);
 
   return (
     <div className="flex flex-col h-[600px] border rounded-lg">

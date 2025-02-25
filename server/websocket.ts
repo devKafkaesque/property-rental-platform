@@ -1,6 +1,7 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import { log } from './vite';
+import { ChatMessage } from './models/chat';
 
 interface ChatClient {
   ws: WebSocket;
@@ -9,7 +10,7 @@ interface ChatClient {
   role: 'tenant' | 'landowner';
 }
 
-interface ChatMessage {
+interface ChatMessageData {
   type: 'message' | 'join' | 'leave';
   userId: number;
   username: string;
@@ -26,16 +27,16 @@ class ChatServer {
     const wss = new WebSocketServer({ 
       server,
       path: '/ws/chat',
-      perMessageDeflate: false // Disable per-message deflate to avoid conflicts
+      perMessageDeflate: false
     });
 
     wss.on('connection', (ws: WebSocket) => {
       log('New WebSocket connection');
 
-      ws.on('message', (data: string) => {
+      ws.on('message', async (data: string) => {
         try {
-          const message = JSON.parse(data) as ChatMessage;
-          this.handleMessage(ws, message);
+          const message = JSON.parse(data) as ChatMessageData;
+          await this.handleMessage(ws, message);
         } catch (error) {
           log('Error handling message:', error);
         }
@@ -47,25 +48,25 @@ class ChatServer {
     });
   }
 
-  private handleMessage(ws: WebSocket, message: ChatMessage & { role?: 'tenant' | 'landowner' }) {
+  private async handleMessage(ws: WebSocket, message: ChatMessageData & { role?: 'tenant' | 'landowner' }) {
     switch (message.type) {
       case 'join':
         if (!message.role) {
           log('Error: Role not provided in join message');
           return;
         }
-        this.handleJoin(ws, { ...message, role: message.role });
+        await this.handleJoin(ws, { ...message, role: message.role });
         break;
       case 'message':
-        this.broadcastToPropertyGroup(message);
+        await this.handleChatMessage(message);
         break;
       case 'leave':
-        this.handleLeave(message);
+        await this.handleLeave(message);
         break;
     }
   }
 
-  private handleJoin(ws: WebSocket, message: ChatMessage & { role: 'tenant' | 'landowner' }) {
+  private async handleJoin(ws: WebSocket, message: ChatMessageData & { role: 'tenant' | 'landowner' }) {
     const client: ChatClient = {
       ws,
       userId: message.userId,
@@ -75,13 +76,35 @@ class ChatServer {
 
     this.clients.set(message.userId, client);
 
-    // Add to property-specific group
     if (!this.propertyGroups.has(message.propertyId)) {
       this.propertyGroups.set(message.propertyId, new Set());
     }
     this.propertyGroups.get(message.propertyId)!.add(message.userId);
 
-    // Notify group about new member
+    // Save join message to MongoDB
+    await new ChatMessage({
+      type: 'join',
+      userId: message.userId,
+      username: message.username,
+      content: `${message.username} (${message.role}) joined the chat`,
+      propertyId: message.propertyId,
+      timestamp: new Date(message.timestamp)
+    }).save();
+
+    // Load and send previous messages
+    const previousMessages = await ChatMessage.find({ propertyId: message.propertyId })
+      .sort({ timestamp: -1 })
+      .limit(50)
+      .lean();
+
+    if (client.ws.readyState === WebSocket.OPEN) {
+      client.ws.send(JSON.stringify({
+        type: 'history',
+        messages: previousMessages.reverse()
+      }));
+    }
+
+    // Notify others about the new member
     this.broadcastToPropertyGroup({
       type: 'join',
       userId: message.userId,
@@ -92,19 +115,37 @@ class ChatServer {
     });
   }
 
-  private handleLeave(message: ChatMessage) {
+  private async handleChatMessage(message: ChatMessageData) {
+    // Save message to MongoDB
+    await new ChatMessage({
+      type: 'message',
+      userId: message.userId,
+      username: message.username,
+      content: message.content,
+      propertyId: message.propertyId,
+      timestamp: new Date(message.timestamp)
+    }).save();
+
+    // Broadcast message to property group
+    this.broadcastToPropertyGroup(message);
+  }
+
+  private async handleLeave(message: ChatMessageData) {
     if (this.propertyGroups.has(message.propertyId)) {
       this.propertyGroups.get(message.propertyId)!.delete(message.userId);
 
-      // Notify group about member leaving
-      this.broadcastToPropertyGroup({
+      // Save leave message to MongoDB
+      await new ChatMessage({
         type: 'leave',
         userId: message.userId,
         username: message.username,
         content: `${message.username} left the chat`,
         propertyId: message.propertyId,
-        timestamp: Date.now()
-      });
+        timestamp: new Date(message.timestamp)
+      }).save();
+
+      // Notify group about member leaving
+      this.broadcastToPropertyGroup(message);
     }
   }
 
@@ -120,10 +161,11 @@ class ChatServer {
     }
 
     if (disconnectedClient) {
-      // Remove user from all property groups
       for (const [propertyId, members] of this.propertyGroups.entries()) {
         if (members.has(disconnectedClient.userId)) {
           members.delete(disconnectedClient.userId);
+
+          // Don't save disconnect messages to avoid cluttering the history
           this.broadcastToPropertyGroup({
             type: 'leave',
             userId: disconnectedClient.userId,
@@ -137,7 +179,7 @@ class ChatServer {
     }
   }
 
-  private broadcastToPropertyGroup(message: ChatMessage) {
+  private broadcastToPropertyGroup(message: ChatMessageData) {
     if (!this.propertyGroups.has(message.propertyId)) return;
 
     const members = this.propertyGroups.get(message.propertyId)!;
