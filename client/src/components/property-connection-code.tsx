@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Copy, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -20,17 +19,20 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
 
   const generateCodeMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`, {});
-      console.log('Response:', response);
+      const response = await fetch(`/api/properties/${propertyId}/connection-code`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
 
-      if (!response.ok) {
-        throw new Error('Failed to generate connection code');
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error);
       }
-
-      const result = await response.json();
-      console.log('Result:', result);
-
-      return result;
+      return data;
     },
     onSuccess: (data) => {
       setCurrentCode(data.connectionCode);
@@ -38,15 +40,14 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
         queryKey: [`/api/properties/owner/${user?.id}`]
       });
       toast({
-        title: "Connection code generated",
-        description: "Share this code with your tenant to establish a connection.",
+        title: "Success",
+        description: "New connection code generated.",
       });
     },
-    onError: (error) => {
-      console.error('Error generating code:', error);
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to generate connection code. Please try again.",
+        description: error.message || "Failed to generate code",
         variant: "destructive",
       });
     }
@@ -58,15 +59,14 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
         await navigator.clipboard.writeText(currentCode);
         setCopied(true);
         toast({
-          title: "Copied to clipboard",
-          description: "The connection code has been copied to your clipboard.",
+          title: "Copied",
+          description: "Connection code copied to clipboard",
         });
         setTimeout(() => setCopied(false), 2000);
       } catch (error) {
-        console.error('Error copying to clipboard:', error);
         toast({
           title: "Error",
-          description: "Failed to copy code to clipboard.",
+          description: "Failed to copy code",
           variant: "destructive",
         });
       }
@@ -108,7 +108,7 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
           <p className="text-sm font-medium mb-2">Connection Code:</p>
           <p className="font-mono text-lg">{currentCode}</p>
           <p className="text-sm text-muted-foreground mt-2">
-            Share this code with your tenant or send them this link:
+            Share this code with your tenant to establish a connection
           </p>
           <p className="font-mono text-sm mt-1 break-all">{shareLink}</p>
         </div>

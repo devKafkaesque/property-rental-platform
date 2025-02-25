@@ -106,38 +106,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/properties/:id/connection-code", ensureLandowner, async (req, res) => {
     try {
       const propertyId = Number(req.params.id);
-
-      // Verify property exists and belongs to landowner
       const property = await storage.getPropertyById(propertyId);
+
       if (!property) {
-        return res.status(404).json({ error: "Property not found" });
+        return res.json({ error: "Property not found" });
       }
       if (property.ownerId !== req.user!.id) {
-        return res.status(403).json({ error: "You do not own this property" });
+        return res.json({ error: "You do not own this property" });
       }
 
-      // Generate new connection code
       const connectionCode = crypto.randomBytes(4).toString('hex').toUpperCase();
-
-      // Update property with new code
       await storage.updatePropertyConnectionCode(propertyId, connectionCode);
 
-      console.log(`Generated new connection code ${connectionCode} for property ${propertyId}`);
-
-      // Set explicit headers and return JSON response
-      res.setHeader('Content-Type', 'application/json');
-      return res.json({
-        connectionCode: connectionCode,
-        success: true
-      });
+      return res.json({ connectionCode });
 
     } catch (error) {
       console.error('Error generating connection code:', error);
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(500).json({ 
-        error: "Failed to generate connection code",
-        success: false
-      });
+      return res.json({ error: "Failed to generate connection code" });
     }
   });
 
