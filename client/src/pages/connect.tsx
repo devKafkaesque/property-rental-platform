@@ -5,7 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { apiRequest } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
 
 export default function ConnectPage() {
@@ -15,25 +14,28 @@ export default function ConnectPage() {
 
   const connectMutation = useMutation({
     mutationFn: async (code: string) => {
-      // Validate code format before sending request
-      if (!/^[a-f0-9]{8}$/i.test(code)) {
-        throw new Error("Invalid connection code format. Code should be 8 characters long and contain only letters (a-f) and numbers.");
+      const response = await fetch(`/api/properties/connect/${code}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to connect to property");
       }
 
-      const res = await apiRequest("POST", `/api/properties/connect/${code}`);
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to connect to property");
-      }
-      return res.json();
+      return data;
     },
     onSuccess: (data) => {
       toast({
         title: "Successfully connected!",
-        description: "You have been connected to the property. Redirecting to dashboard...",
+        description: "You have been connected to the property.",
       });
-      // Give time for the toast to be visible
-      setTimeout(() => setLocation("/dashboard"), 2000);
+      setTimeout(() => setLocation("/dashboard"), 1500);
     },
     onError: (error: Error) => {
       toast({
@@ -46,11 +48,19 @@ export default function ConnectPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmedCode = code.trim();
+    const trimmedCode = code.trim().toUpperCase();
     if (!trimmedCode) {
       toast({
         title: "Error",
         description: "Please enter a connection code",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!/^[A-F0-9]{8}$/.test(trimmedCode)) {
+      toast({
+        title: "Error",
+        description: "Invalid connection code format",
         variant: "destructive",
       });
       return;
@@ -74,8 +84,8 @@ export default function ConnectPage() {
                   onChange={(e) => setCode(e.target.value)}
                   disabled={connectMutation.isPending}
                   maxLength={8}
-                  pattern="^[a-fA-F0-9]{8}$"
-                  title="Connection code should be 8 characters long and contain only letters (a-f) and numbers"
+                  pattern="^[A-Fa-f0-9]{8}$"
+                  title="Connection code should be 8 characters long and contain only letters (A-F) and numbers"
                 />
                 <p className="text-sm text-muted-foreground">
                   Enter the 8-character code provided by your landlord

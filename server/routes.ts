@@ -132,6 +132,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+  app.post("/api/properties/connect/:code", ensureAuthenticated, async (req, res) => {
+    try {
+      if (req.user!.role !== "tenant") {
+        res.status(403);
+        return res.json({ error: "Only tenants can connect to properties" });
+      }
+
+      const code = req.params.code.toUpperCase();
+
+      // Find property with matching connection code
+      const properties = await storage.getProperties();
+      const property = properties.find(p => p.connectionCode === code);
+
+      if (!property) {
+        res.status(404);
+        return res.json({ error: "Invalid connection code" });
+      }
+
+      if (property.status !== "available") {
+        res.status(400);
+        return res.json({ error: "Property is not available for connection" });
+      }
+
+      // Create tenant contract
+      const contract = await storage.createTenantContract({
+        propertyId: property.id,
+        tenantId: req.user!.id,
+        landownerId: property.ownerId,
+        startDate: new Date(),
+        endDate: null,
+        contractStatus: "active",
+        depositPaid: false,
+        rentAmount: property.rentPrice,
+        depositAmount: property.depositAmount
+      });
+
+      // Update property status
+      await storage.updateProperty(property.id, {
+        status: "rented",
+        connectionCode: null
+      });
+
+      res.json({ success: true, propertyId: property.id });
+    } catch (err) {
+      console.error('Error:', err);
+      res.status(500);
+      res.json({ error: "Server error" });
+    }
+  });
+
   // Viewing Request routes
   app.post("/api/viewing-requests", ensureAuthenticated, async (req, res) => {
     if (req.user!.role !== "tenant") {
