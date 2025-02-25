@@ -2,7 +2,16 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
-import { insertViewingRequestSchema } from "@shared/schema";
+import { insertPropertySchema, insertViewingRequestSchema } from "@shared/schema";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import express from "express";
+import { fileURLToPath } from 'url';
+import crypto from 'crypto';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export function ensureAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) return next();
@@ -17,6 +26,29 @@ export function ensureLandowner(req: Request, res: Response, next: NextFunction)
 export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
   const httpServer = createServer(app);
+
+  // Property routes
+  app.get("/api/properties", async (req, res) => {
+    try {
+      const properties = await storage.getProperties();
+      console.log('Retrieved properties:', properties);
+      res.json(properties);
+    } catch (error) {
+      console.error('Error getting properties:', error);
+      res.status(500).json({ error: "Failed to get properties" });
+    }
+  });
+
+  app.get("/api/properties/:id", async (req, res) => {
+    const property = await storage.getPropertyById(Number(req.params.id));
+    if (!property) return res.status(404).end();
+    res.json(property);
+  });
+
+  app.get("/api/properties/owner/:id", async (req, res) => {
+    const properties = await storage.getPropertiesByOwner(Number(req.params.id));
+    res.json(properties);
+  });
 
   // Viewing Request routes
   app.post("/api/viewing-requests", ensureAuthenticated, async (req, res) => {
@@ -33,7 +65,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestDate = new Date(request.createdAt);
       const oneMonthAgo = new Date();
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-      // Only check for pending or approved requests from this tenant
       return request.propertyId === data.propertyId && 
              request.tenantId === req.user!.id && 
              request.status !== 'cancelled' &&
