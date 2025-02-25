@@ -22,19 +22,38 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`);
       const data = await res.json();
+      console.log('Generated code response:', data); // Debug log
       return data;
     },
     onSuccess: (data) => {
-      setCurrentCode(data.connectionCode);
-      // Update the property in the cache with the new connection code
-      queryClient.invalidateQueries({ 
-        queryKey: [`/api/properties/owner/${user?.id}`]
-      });
-      toast({
-        title: "Connection code generated",
-        description: "Share this code with your tenant to establish a connection.",
-      });
+      if (data.connectionCode) {
+        console.log('Setting new code:', data.connectionCode); // Debug log
+        setCurrentCode(data.connectionCode);
+        // Invalidate the query to refresh the property list
+        queryClient.invalidateQueries({ 
+          queryKey: [`/api/properties/owner/${user?.id}`]
+        });
+        toast({
+          title: "Connection code generated",
+          description: "Share this code with your tenant to establish a connection.",
+        });
+      } else {
+        console.error('No connection code in response:', data);
+        toast({
+          title: "Error",
+          description: "Failed to generate connection code. Please try again.",
+          variant: "destructive",
+        });
+      }
     },
+    onError: (error) => {
+      console.error('Error generating code:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate connection code. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   const copyToClipboard = async () => {

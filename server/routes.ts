@@ -329,18 +329,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Generate new connection code for a property
   app.post("/api/properties/:id/connection-code", ensureLandowner, async (req, res) => {
-    const property = await storage.getPropertyById(Number(req.params.id));
-    if (!property) return res.status(404).end();
-    if (property.ownerId !== req.user!.id) return res.status(403).end();
+    try {
+      const property = await storage.getPropertyById(Number(req.params.id));
+      if (!property) return res.status(404).json({ error: "Property not found" });
+      if (property.ownerId !== req.user!.id) return res.status(403).json({ error: "Not authorized" });
 
-    // Generate a unique 8-character code
-    const connectionCode = crypto.randomBytes(4).toString('hex');
+      // Generate a unique 8-character code
+      const connectionCode = crypto.randomBytes(4).toString('hex');
 
-    const updatedProperty = await storage.updateProperty(Number(req.params.id), {
-      connectionCode
-    });
+      const updatedProperty = await storage.updateProperty(Number(req.params.id), {
+        connectionCode,
+        status: property.status // preserve existing status
+      });
 
-    res.json({ connectionCode: updatedProperty.connectionCode });
+      console.log('Generated connection code:', connectionCode); // Debug log
+      res.json({ connectionCode });
+    } catch (error) {
+      console.error('Error generating connection code:', error);
+      res.status(500).json({ error: "Failed to generate connection code" });
+    }
   });
 
   // Connect tenant to property using code
