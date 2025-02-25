@@ -1,4 +1,4 @@
-import { Property } from "@shared/schema";
+import { Property, User } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function PropertyListing() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { data: user } = useQuery({ queryKey: ["/api/user"] });
+  const { data: user } = useQuery<User>({ queryKey: ["/api/user"] });
   const { data: properties = [], isLoading } = useQuery<Property[]>({
     queryKey: ["/api/properties"],
   });

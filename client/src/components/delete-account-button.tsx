@@ -11,7 +11,9 @@ export default function DeleteAccountButton() {
 
   const deleteAccountMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("DELETE", `/api/users/${localStorage.getItem("userId")}`);
+      const userId = localStorage.getItem("userId");
+      if (!userId) throw new Error("User ID not found");
+      await apiRequest("DELETE", `/api/users/${userId}`);
     },
     onSuccess: () => {
       toast({
