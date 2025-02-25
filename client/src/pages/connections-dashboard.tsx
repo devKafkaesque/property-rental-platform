@@ -54,73 +54,40 @@ export default function ConnectionsDashboard() {
     enabled: !!user && user.role === "landowner",
   });
 
-  // Query maintenance requests for each property
-  const { data: maintenanceRequests = {} } = useQuery({
-    queryKey: ["/api/maintenance-requests/all"],
-    enabled: !!user && user.role === "landowner",
-    queryFn: async () => {
-      if (!properties) return {};
-
-      const requests = await Promise.all(
-        properties.map(async (property) => {
-          const res = await apiRequest("GET", `/api/maintenance-requests/property/${property.id}`);
-          const data = await res.json();
-          return { propertyId: property.id, requests: data };
-        })
-      );
-
-      return requests.reduce((acc, curr) => {
-        acc[curr.propertyId] = curr.requests;
-        return acc;
-      }, {} as Record<number, any[]>);
-    }
-  });
-
   // For tenants: fetch their contracts
   const { data: myContracts, isLoading: myContractsLoading } = useQuery<TenantContract[]>({
     queryKey: ["/api/tenant-contracts/tenant"],
     enabled: !!user && user.role === "tenant",
   });
 
-  // Generate new connection code mutation
-  const generateCodeMutation = useMutation({
+  // Request deposit return mutation
+  const requestDepositMutation = useMutation({
     mutationFn: async (propertyId: number) => {
-      const res = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`);
-      return res.json();
+      await apiRequest("POST", `/api/properties/${propertyId}/request-deposit`);
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/properties/owner/${user?.id}`] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tenant-contracts/tenant"] });
       toast({
-        title: "Connection Code Generated",
-        description: `New code: ${data.connectionCode}`,
+        title: "Success",
+        description: "Deposit return request has been submitted.",
       });
     },
   });
 
-  const togglePropertyExpand = (propertyId: number) => {
-    setExpandedProperties(prev =>
-      prev.includes(propertyId)
-        ? prev.filter(id => id !== propertyId)
-        : [...prev, propertyId]
-    );
-  };
-
-  // Count pending maintenance requests for a property
-  const getPendingRequestsCount = (propertyId: number) => {
-    if (!maintenanceRequests[propertyId]) return 0;
-    return maintenanceRequests[propertyId].filter(
-      request => request.status === "pending"
-    ).length;
-  };
-
-  const reviewRequestMutation = useMutation({ //Added mutation for review
-    mutationFn: async (data: any) => {
-      const res = await apiRequest("PUT", `/api/maintenance-requests/${data.id}`, data);
-      return res.json();
+  // Handle deposit return mutation (for landlords)
+  const handleDepositMutation = useMutation({
+    mutationFn: async (data: { propertyId: number; contractId: number; status: "approved" | "rejected" }) => {
+      await apiRequest("POST", `/api/properties/${data.propertyId}/handle-deposit`, {
+        contractId: data.contractId,
+        status: data.status,
+      });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/maintenance-requests/all"] });
-      toast({ title: "Maintenance request updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ["/api/tenant-contracts/landowner"] });
+      toast({
+        title: "Success",
+        description: "Deposit return request has been handled.",
+      });
     },
   });
 
@@ -150,11 +117,19 @@ export default function ConnectionsDashboard() {
       setDisconnectType("contract_ended");
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to disconnect tenant",
-        variant: "destructive",
-      });
+      if (error.message?.includes("deposit return request")) {
+        toast({
+          title: "Cannot Disconnect",
+          description: "Please handle the tenant's deposit return request first.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to disconnect tenant",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -225,11 +200,6 @@ export default function ConnectionsDashboard() {
                             `}>
                               {property.status}
                             </span>
-                            {getPendingRequestsCount(property.id) > 0 && (
-                              <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-                                {getPendingRequestsCount(property.id)}
-                              </span>
-                            )}
                           </div>
                           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </div>
@@ -237,106 +207,125 @@ export default function ConnectionsDashboard() {
                     </CardHeader>
 
                     <CardContent className={`space-y-4 ${isExpanded ? '' : 'hidden'}`}>
-                      {property.status === "available" && (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <Key className="h-4 w-4" />
-                            <span>{property.connectionCode || "No active code"}</span>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => generateCodeMutation.mutate(property.id)}
-                            disabled={generateCodeMutation.isPending}
-                          >
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Generate Code
-                          </Button>
-                        </div>
-                      )}
-
-                      <div className="space-y-4">
-                        <div className="flex items-center space-x-2">
-                          <Users className="h-4 w-4" />
-                          <span>
-                            {connectedTenants?.length || 0} Connected Tenant{connectedTenants?.length !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-
-                        {connectedTenants?.map((contract) => (
-                          <div key={contract.id} className="border rounded-lg p-4 space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium">Tenant ID: {contract.tenantId}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  Connected since {new Date(contract.startDate).toLocaleDateString()}
-                                </p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className={`
-                                  px-2 py-1 rounded-full text-sm
-                                  ${contract.contractStatus === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
-                                `}>
-                                  {contract.contractStatus}
-                                </span>
-                                {contract.contractStatus === "active" && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="flex items-center gap-2"
-                                    onClick={() => setDisconnectDialog({
-                                      isOpen: true,
-                                      propertyId: property.id,
-                                      contractId: contract.id,
-                                      tenantId: contract.tenantId
-                                    })}
-                                  >
-                                    <UserX className="h-4 w-4" />
-                                    Disconnect Tenant
-                                  </Button>
-                                )}
-                              </div>
+                      {connectedTenants?.map((contract) => (
+                        <div key={contract.id} className="border rounded-lg p-4 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">Tenant ID: {contract.tenantId}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Connected since {new Date(contract.startDate).toLocaleDateString()}
+                              </p>
                             </div>
-
-                            {/* Maintenance History Section */}
-                            <div className="border-t pt-4">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <WrenchIcon className="h-4 w-4" />
-                                <h3 className="font-medium">Maintenance History</h3>
-                              </div>
-                              <MaintenanceRequestList propertyId={property.id} />
-                            </div>
-
-                            {/* Rent Payment History Section */}
-                            <div className="border-t pt-4">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <Wallet className="h-4 w-4" />
-                                <h3 className="font-medium">Rent Payment History</h3>
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Rent Amount: ${contract.rentAmount}
-                                <br />
-                                Deposit Status: {contract.depositPaid ? 'Paid' : 'Pending'}
-                              </div>
-                            </div>
-
-                            {/* Behavior History Section */}
-                            <div className="border-t pt-4">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <Star className="h-4 w-4" />
-                                <h3 className="font-medium">Tenant Behavior</h3>
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                Contract Status: {contract.contractStatus}
-                                <br />
-                                Payment History: Good Standing
-                                <br />
-                                Maintenance Request Response: Timely
-                              </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`
+                                px-2 py-1 rounded-full text-sm
+                                ${contract.contractStatus === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}
+                              `}>
+                                {contract.contractStatus}
+                              </span>
+                              {contract.contractStatus === "active" && (
+                                <>
+                                  {contract.depositRequested && contract.depositReturnStatus === "pending" ? (
+                                    <div className="flex gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleDepositMutation.mutate({
+                                          propertyId: property.id,
+                                          contractId: contract.id,
+                                          status: "approved"
+                                        })}
+                                      >
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Approve Deposit
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleDepositMutation.mutate({
+                                          propertyId: property.id,
+                                          contractId: contract.id,
+                                          status: "rejected"
+                                        })}
+                                      >
+                                        <XCircle className="h-4 w-4 mr-2" />
+                                        Reject Deposit
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="flex items-center gap-2"
+                                      onClick={() => setDisconnectDialog({
+                                        isOpen: true,
+                                        propertyId: property.id,
+                                        contractId: contract.id,
+                                        tenantId: contract.tenantId
+                                      })}
+                                    >
+                                      <UserX className="h-4 w-4" />
+                                      Disconnect Tenant
+                                    </Button>
+                                  )}
+                                </>
+                              )}
                             </div>
                           </div>
-                        ))}
-                      </div>
+
+                          {/* Display deposit status */}
+                          <div className="mt-2 text-sm">
+                            <p className="flex items-center gap-2">
+                              <Wallet className="h-4 w-4" />
+                              Deposit Status: {
+                                contract.depositRequested
+                                  ? contract.depositReturnStatus === "pending"
+                                    ? "Return Requested"
+                                    : `Return ${contract.depositReturnStatus}`
+                                  : contract.depositPaid
+                                    ? "Paid"
+                                    : "Not Paid"
+                              }
+                            </p>
+                          </div>
+                          {/* Maintenance History Section */}
+                          <div className="border-t pt-4">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <WrenchIcon className="h-4 w-4" />
+                              <h3 className="font-medium">Maintenance History</h3>
+                            </div>
+                            <MaintenanceRequestList propertyId={property.id} />
+                          </div>
+
+                          {/* Rent Payment History Section */}
+                          <div className="border-t pt-4">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Wallet className="h-4 w-4" />
+                              <h3 className="font-medium">Rent Payment History</h3>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Rent Amount: ${contract.rentAmount}
+                              <br />
+                              Deposit Status: {contract.depositPaid ? 'Paid' : 'Pending'}
+                            </div>
+                          </div>
+
+                          {/* Behavior History Section */}
+                          <div className="border-t pt-4">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Star className="h-4 w-4" />
+                              <h3 className="font-medium">Tenant Behavior</h3>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Contract Status: {contract.contractStatus}
+                              <br />
+                              Payment History: Good Standing
+                              <br />
+                              Maintenance Request Response: Timely
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </CardContent>
                   </Card>
                 );
@@ -355,7 +344,6 @@ export default function ConnectionsDashboard() {
 
                 const PropertyIcon = getPropertyIcon(property.type, property.category);
                 const isActiveConnection = contract.contractStatus === "active";
-                const isLandowner = user?.role === "landowner";
 
                 return (
                   <Card key={contract.id} className="flex flex-col">
@@ -380,82 +368,36 @@ export default function ConnectionsDashboard() {
                           <LinkIcon className="h-4 w-4" />
                           <span>Connected since {new Date(contract.startDate).toLocaleDateString()}</span>
                         </div>
+
+                        {/* Deposit Status and Actions */}
                         <div className="flex items-center space-x-2">
-                          {contract.depositPaid ? (
-                            <>
-                              <CheckCircle2 className="h-4 w-4 text-green-500" />
-                              <span>Deposit paid</span>
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="h-4 w-4 text-red-500" />
-                              <span>Deposit pending</span>
-                            </>
-                          )}
+                          <Wallet className="h-4 w-4" />
+                          <span>
+                            Deposit Status: {
+                              contract.depositRequested
+                                ? contract.depositReturnStatus === "pending"
+                                  ? "Return Requested"
+                                  : `Return ${contract.depositReturnStatus}`
+                                : contract.depositPaid
+                                  ? "Paid"
+                                  : "Not Paid"
+                            }
+                          </span>
                         </div>
 
-                        {/* Tenant Actions */}
-                        {isActiveConnection && maintenanceRequests && maintenanceRequests[property.id] && maintenanceRequests[property.id].map((request) => (
-                          <>
-                            {!isLandowner && request.status === "needs_review" && (
-                              <div className="mt-4 space-y-4">
-                                <div className="text-sm text-muted-foreground">
-                                  <strong>Landlord Notes:</strong> {request.landlordNotes || "No notes provided"}
-                                </div>
-                                <Textarea
-                                  placeholder="Add your review of the maintenance work..."
-                                  value={notes[request.id] || ""}
-                                  onChange={(e) => setNotes({ ...notes, [request.id]: e.target.value })}
-                                />
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    className="flex-1"
-                                    onClick={() => reviewRequestMutation.mutate({
-                                      id: request.id,
-                                      status: "completed",
-                                      tenantReview: notes[request.id]
-                                    })}
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                    Approve & Close
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    className="flex-1"
-                                    onClick={() => reviewRequestMutation.mutate({
-                                      id: request.id,
-                                      status: "cancelled",
-                                      tenantReview: notes[request.id]
-                                    })}
-                                  >
-                                    <XCircle className="h-4 w-4 mr-2" />
-                                    Reject
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        ))}
-
-                        {/* Show maintenance history for tenants */}
-                        {!isLandowner && isActiveConnection && (
-                          <div className="space-y-4 mt-6">
-                            <div className="flex items-center space-x-2">
-                              <WrenchIcon className="h-4 w-4" />
-                              <h3 className="font-medium">Maintenance Requests</h3>
-                            </div>
-                            <MaintenanceRequestForm propertyId={property.id} />
-                            <div className="mt-4">
-                              <div className="flex items-center space-x-2 mb-2">
-                                <ClipboardList className="h-4 w-4" />
-                                <h3 className="font-medium">Request History</h3>
-                              </div>
-                              <MaintenanceRequestList propertyId={property.id} />
-                            </div>
-                          </div>
+                        {contract.contractStatus === "active" && !contract.depositRequested && (
+                          <Button
+                            variant="outline"
+                            className="w-full mt-4 flex items-center justify-center gap-2"
+                            onClick={() => {
+                              if (window.confirm("Are you sure you want to request your deposit return? This action cannot be undone.")) {
+                                requestDepositMutation.mutate(property.id);
+                              }
+                            }}
+                          >
+                            <Wallet className="h-4 w-4" />
+                            Request Deposit Return
+                          </Button>
                         )}
 
                         {contract.contractStatus === "active" && (
@@ -463,7 +405,7 @@ export default function ConnectionsDashboard() {
                             variant="outline"
                             className="w-full mt-4 flex items-center justify-center gap-2"
                             onClick={() => {
-                              if (window.confirm("Are you sure you want to disconnect from this property? This action cannot be undone.")) {
+                              if (window.confirm("Are you sure you want to disconnect from this property?")) {
                                 disconnectSelfMutation.mutate(property.id);
                               }
                             }}
@@ -472,13 +414,21 @@ export default function ConnectionsDashboard() {
                             Disconnect from Property
                           </Button>
                         )}
-                        <Button
-                          className="w-full mt-4"
-                          variant="outline"
-                          onClick={() => setLocation(`/property/${property.id}`)}
-                        >
-                          View Property Details
-                        </Button>
+                        {/* Maintenance History Section */}
+                        <div className="border-t pt-4">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <WrenchIcon className="h-4 w-4" />
+                            <h3 className="font-medium">Maintenance Requests</h3>
+                          </div>
+                          <MaintenanceRequestForm propertyId={property.id} />
+                          <div className="mt-4">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <ClipboardList className="h-4 w-4" />
+                              <h3 className="font-medium">Request History</h3>
+                            </div>
+                            <MaintenanceRequestList propertyId={property.id} />
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

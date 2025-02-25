@@ -627,6 +627,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Not authorized to manage this property" });
       }
 
+      // Check if tenant has requested deposit return
+      if (contract.depositRequested && contract.depositReturnStatus === "pending") {
+        return res.status(400).json({
+          error: "Cannot disconnect tenant until deposit return request is handled",
+          depositRequested: true
+        });
+      }
+
       // Update contract status
       await storage.updateTenantContract(contractId, {
         contractStatus: "terminated",
@@ -726,6 +734,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Failed to analyze pricing",
         details: error instanceof Error ? error.message : "Unknown error"
       });
+    }
+  });
+
+  // Add this new route for deposit requests
+  app.post("/api/properties/:id/request-deposit", ensureAuthenticated, async (req, res) => {
+    try {
+      const propertyId = Number(req.params.id);
+
+      // Check if user is tenant
+      if (req.user!.role !== "tenant") {
+        return res.status(403).json({ error: "Only tenants can request deposit return" });
+      }
+
+      // Get the active contract
+      const contracts = await storage.getTenantContractsByTenant(req.user!.id);
+      const activeContract = contracts.find(c =>
+        c.propertyId === propertyId &&
+        c.contractStatus === "active"
+      );
+
+      if (!activeContract) {
+        return res.status(404).json({ error: "No active connection found" });
+      }
+
+      // Update contract with deposit request
+      await storage.updateTenantContract(activeContract.id, {
+        depositRequested: true,
+        depositRequestDate: new Date(),
+        depositReturnStatus: "pending"
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error requesting deposit:', error);
+      res.status(500).json({ error: "Failed to request deposit" });
+    }
+  });
+
+  // Update the disconnect-tenant route to check for deposit status
+  app.post("/api/properties/:id/disconnect-tenant", ensureLandowner, async (req, res) => {
+    try {
+      const propertyId = Number(req.params.id);
+      const { contractId, reason, type } = req.body;
+
+      // Get the contract
+      const contract = await storage.getTenantContractById(contractId);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      // Get the property
+      const property = await storage.getPropertyById(propertyId);
+      if (!property) {
+        return res.status(404).json({ error: "Property not found" });
+      }
+
+      // Verify ownership
+      if (property.ownerId !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized to manage this property" });
+      }
+
+      // Check if tenant has requested deposit return
+      if (contract.depositRequested && contract.depositReturnStatus === "pending") {
+        return res.status(400).json({
+          error: "Cannot disconnect tenant until deposit return request is handled",
+          depositRequested: true
+        });
+      }
+
+      // Update contract status
+      await storage.updateTenantContract(contractId, {
+        contractStatus: "terminated",
+        terminationReason: reason,
+        terminationType: type,
+        terminatedAt: new Date()
+      });
+
+      // Check if this was the last active tenant
+      const activeContracts = await storage.getTenantContractsByProperty(propertyId);
+      const hasActiveContracts = activeContracts.some(c => 
+        c.id !== contractId && c.contractStatus === "active"
+      );
+
+      // If no more active contracts, set property as available
+      if (!hasActiveContracts) {
+        await storage.updateProperty(propertyId, {
+          status: "available" as const
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error disconnecting tenant:', error);
+      res.status(500).json({ error: "Failed to disconnect tenant" });
+    }
+  });
+
+  // Add route to handle deposit return status
+  app.post("/api/properties/:id/handle-deposit", ensureLandowner, async (req, res) => {
+    try {
+      const propertyId = Number(req.params.id);
+      const { contractId, status } = req.body;
+
+      if (!["approved", "rejected"].includes(status)) {
+        return res.status(400).json({ error: "Invalid deposit return status" });
+      }
+
+      const contract = await storage.getTenantContractById(contractId);
+      if (!contract) {
+        return res.status(404).json({ error: "Contract not found" });
+      }
+
+      if (contract.propertyId !== propertyId) {
+        return res.status(400).json({ error: "Contract does not match property" });
+      }
+
+      await storage.updateTenantContract(contractId, {
+        depositReturnStatus: status,
+        updatedAt: new Date()
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error handling deposit return:', error);
+      res.status(500).json({ error: "Failed to handle deposit return" });
     }
   });
 
