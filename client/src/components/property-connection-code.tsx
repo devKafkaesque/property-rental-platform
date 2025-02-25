@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Copy, RefreshCw } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 interface PropertyConnectionCodeProps {
   propertyId: number;
@@ -15,6 +16,7 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
   const [copied, setCopied] = useState(false);
   const [currentCode, setCurrentCode] = useState(initialConnectionCode);
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const generateCodeMutation = useMutation({
     mutationFn: async () => {
@@ -25,17 +27,9 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
     onSuccess: (data) => {
       setCurrentCode(data.connectionCode);
       // Update the property in the cache with the new connection code
-      queryClient.setQueriesData(
-        { queryKey: ["/api/properties/owner"] },
-        (oldData: any) => {
-          if (!oldData) return oldData;
-          return oldData.map((property: any) =>
-            property.id === propertyId
-              ? { ...property, connectionCode: data.connectionCode }
-              : property
-          );
-        }
-      );
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/properties/owner/${user?.id}`]
+      });
       toast({
         title: "Connection code generated",
         description: "Share this code with your tenant to establish a connection.",
