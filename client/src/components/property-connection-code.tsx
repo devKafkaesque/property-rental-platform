@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { Loader2, Copy, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -19,37 +20,17 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
 
   const generateCodeMutation = useMutation({
     mutationFn: async () => {
-      try {
-        console.log('Generating code for property:', propertyId);
-        const response = await fetch(`/api/properties/${propertyId}/connection-code`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
+      const response = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`, {});
+      console.log('Response:', response);
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('Response is not JSON');
-        }
-
-        const data = await response.json();
-        console.log('Response data:', data);
-
-        if (!data || typeof data.connectionCode !== 'string') {
-          throw new Error('Invalid response format');
-        }
-
-        return data;
-      } catch (error) {
-        console.error('Error in code generation:', error);
-        throw error;
+      if (!response.ok) {
+        throw new Error('Failed to generate connection code');
       }
+
+      const result = await response.json();
+      console.log('Result:', result);
+
+      return result;
     },
     onSuccess: (data) => {
       setCurrentCode(data.connectionCode);
