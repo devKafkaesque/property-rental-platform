@@ -22,17 +22,26 @@ export default function PropertyConnectionCode({ propertyId, connectionCode: ini
     mutationFn: async () => {
       try {
         const response = await apiRequest("POST", `/api/properties/${propertyId}/connection-code`);
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          throw new Error("Invalid response from server");
+
+        // Check if the response is ok
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Server response:', errorText);
+          throw new Error('Failed to generate code');
         }
+
+        // Parse the JSON response
         const data = await response.json();
-        if (!data.connectionCode) {
-          throw new Error("Invalid response format");
+
+        // Validate the response format
+        if (!data || typeof data.connectionCode !== 'string') {
+          console.error('Invalid response format:', data);
+          throw new Error('Invalid response format');
         }
+
         return data;
       } catch (error) {
-        console.error('Error generating code:', error);
+        console.error('Error in code generation:', error);
         throw error;
       }
     },

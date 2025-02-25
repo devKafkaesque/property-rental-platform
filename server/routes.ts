@@ -120,14 +120,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const connectionCode = crypto.randomBytes(4).toString('hex').toUpperCase();
 
       // Update property with new code
-      const updatedProperty = await storage.updatePropertyConnectionCode(propertyId, connectionCode);
+      await storage.updatePropertyConnectionCode(propertyId, connectionCode);
 
       console.log(`Generated new connection code ${connectionCode} for property ${propertyId}`);
-      return res.json({ connectionCode: connectionCode });
+
+      // Set explicit headers and return JSON response
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(200).json({
+        connectionCode: connectionCode,
+        success: true
+      });
 
     } catch (error) {
       console.error('Error generating connection code:', error);
-      return res.status(500).json({ error: "Failed to generate connection code" });
+      res.setHeader('Content-Type', 'application/json');
+      return res.status(500).json({ 
+        error: "Failed to generate connection code",
+        success: false
+      });
     }
   });
 
