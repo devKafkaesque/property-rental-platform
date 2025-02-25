@@ -209,8 +209,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Invalid connection code" });
       }
 
-      if (property.status !== "available") {
-        return res.status(400).json({ error: "Property is not available for connection" });
+      // Check if property is already rented
+      const existingContracts = await storage.getTenantContractsByProperty(property.id);
+      const hasActiveContract = existingContracts.some(c => c.contractStatus === "active");
+
+      if (hasActiveContract) {
+        return res.status(400).json({ error: "Property is already rented" });
       }
 
       const startDate = new Date();
@@ -229,6 +233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         documents: []
       });
 
+      // Always update property status to rented when a tenant connects
       await storage.updateProperty(property.id, {
         status: "rented" as const,
         connectionCode: null
@@ -870,47 +875,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error disconnecting tenant:', error);
       res.status(500).json({ error: "Failed to disconnect tenant" });
-    }
-  });
-
-  app.delete("/api/users/:id", ensureAuthenticated, async (req, res) => {
-    try {
-      const userId = Number(req.params.id);
-
-      if (userId !== req.user!.id) {
-        return res.status(403).json({ error: "Not authorized to delete this user" });
-      }
-
-      if (req.user!.role === "landowner") {
-        const properties = await storage.getPropertiesByOwner(userId);
-        const activeProperties = properties.filter(p => p.status === "rented");
-
-        if (activeProperties.length > 0) {
-          return res.status(400).json({
-            error: "Cannot delete account while having active property rentals. Please end all rentals first."
-          });
-        }
-      }
-
-      if (req.user!.role === "tenant") {
-        const contracts = await storage.getTenantContractsByTenant(userId);
-        const activeContracts = contracts.filter(c => c.contractStatus === "active");
-
-        if (activeContracts.length > 0) {
-          return res.status(400).json({
-            error: "Cannot delete account while having active rentals. Please end all rentals first."
-          });
-        }
-      }
-
-      await storage.deleteUser(userId);
-
-      req.logout(() => {
-        res.json({ success: true });
-      });
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      res.status(500).json({ error: "Failed to delete user" });
     }
   });
 
