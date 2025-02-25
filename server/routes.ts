@@ -169,6 +169,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerId: req.user!.id,
         status: "available",
         maintainanceHistory: [],
+        utilities: [],
+        amenities: [],
+        accessibility: [],
+        securityFeatures: [],
+        parkingSpaces: 0,
+        petsAllowed: false,
+        bedrooms: Number(data.bedrooms),
+        bathrooms: Number(data.bathrooms),
+        squareFootage: Number(data.squareFootage),
+        yearBuilt: null,
       });
 
       console.log('Created property:', property);
