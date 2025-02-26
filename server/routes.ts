@@ -767,11 +767,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Fetching chat properties for owner:', userId);
 
       // Get properties owned by the landowner
-      const properties = await storage.getPropertiesByOwner(ownerId);
+      const properties = await storage.getPropertiesByOwner(userId);
       console.log('Found landowner properties:', properties);
 
       if (!properties || properties.length === 0) {
-        console.log('No properties found for landowner:', ownerId);
+        console.log('No properties found for landowner:', userId);
         return res.json([]);
       }
 
