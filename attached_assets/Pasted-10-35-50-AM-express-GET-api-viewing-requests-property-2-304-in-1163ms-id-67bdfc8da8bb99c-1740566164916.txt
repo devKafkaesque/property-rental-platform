@@ -1,0 +1,85 @@
+10:35:50 AM [express] GET /api/viewing-requests/property/2 304 in 1163ms :: [{"_id":"67bdfc8da8bb99c1…
+Querying properties with owner ID: NaN
+Error in getPropertiesByOwner: CastError: Cast to Number failed for value "NaN" (type number) at path "ownerId" for model "Property"
+    at SchemaNumber.cast (/home/runner/workspace/node_modules/mongoose/lib/schema/number.js:381:11)
+    at SchemaType.applySetters (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1255:12)
+    at SchemaNumber.castForQuery (/home/runner/workspace/node_modules/mongoose/lib/schema/number.js:435:16)
+    at cast (/home/runner/workspace/node_modules/mongoose/lib/cast.js:390:32)
+    at Query.cast (/home/runner/workspace/node_modules/mongoose/lib/query.js:4907:12)
+    at Query._castConditions (/home/runner/workspace/node_modules/mongoose/lib/query.js:2325:10)
+    at model.Query._find (/home/runner/workspace/node_modules/mongoose/lib/query.js:2352:8)
+    at model.Query.exec (/home/runner/workspace/node_modules/mongoose/lib/query.js:4456:80)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async MongoStorage.getPropertiesByOwner (/home/runner/workspace/server/storage/mongo-storage.ts:95:26)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:136:26) {
+  stringValue: '"NaN"',
+  messageFormat: undefined,
+  kind: 'Number',
+  value: NaN,
+  path: 'ownerId',
+  reason: AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(!isNaN(val))
+  
+      at castNumber (/home/runner/workspace/node_modules/mongoose/lib/cast/number.js:27:10)
+      at SchemaNumber.cast (/home/runner/workspace/node_modules/mongoose/lib/schema/number.js:379:12)
+      at SchemaType.applySetters (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1255:12)
+      at SchemaNumber.castForQuery (/home/runner/workspace/node_modules/mongoose/lib/schema/number.js:435:16)
+      at cast (/home/runner/workspace/node_modules/mongoose/lib/cast.js:390:32)
+      at Query.cast (/home/runner/workspace/node_modules/mongoose/lib/query.js:4907:12)
+      at Query._castConditions (/home/runner/workspace/node_modules/mongoose/lib/query.js:2325:10)
+      at model.Query._find (/home/runner/workspace/node_modules/mongoose/lib/query.js:2352:8)
+      at model.Query.exec (/home/runner/workspace/node_modules/mongoose/lib/query.js:4456:80)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async MongoStorage.getPropertiesByOwner (/home/runner/workspace/server/storage/mongo-storage.ts:95:26)
+      at async <anonymous> (/home/runner/workspace/server/routes.ts:136:26) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '=='
+  },
+  valueType: 'number'
+}
+Error fetching owner properties: CastError: Cast to Number failed for value "NaN" (type number) at path "ownerId" for model "Property"
+    at SchemaNumber.cast (/home/runner/workspace/node_modules/mongoose/lib/schema/number.js:381:11)
+    at SchemaType.applySetters (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1255:12)
+    at SchemaNumber.castForQuery (/home/runner/workspace/node_modules/mongoose/lib/schema/number.js:435:16)
+    at cast (/home/runner/workspace/node_modules/mongoose/lib/cast.js:390:32)
+    at Query.cast (/home/runner/workspace/node_modules/mongoose/lib/query.js:4907:12)
+    at Query._castConditions (/home/runner/workspace/node_modules/mongoose/lib/query.js:2325:10)
+    at model.Query._find (/home/runner/workspace/node_modules/mongoose/lib/query.js:2352:8)
+    at model.Query.exec (/home/runner/workspace/node_modules/mongoose/lib/query.js:4456:80)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async MongoStorage.getPropertiesByOwner (/home/runner/workspace/server/storage/mongo-storage.ts:95:26)
+    at async <anonymous> (/home/runner/workspace/server/routes.ts:136:26) {
+  stringValue: '"NaN"',
+  messageFormat: undefined,
+  kind: 'Number',
+  value: NaN,
+  path: 'ownerId',
+  reason: AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(!isNaN(val))
+  
+      at castNumber (/home/runner/workspace/node_modules/mongoose/lib/cast/number.js:27:10)
+      at SchemaNumber.cast (/home/runner/workspace/node_modules/mongoose/lib/schema/number.js:379:12)
+      at SchemaType.applySetters (/home/runner/workspace/node_modules/mongoose/lib/schemaType.js:1255:12)
+      at SchemaNumber.castForQuery (/home/runner/workspace/node_modules/mongoose/lib/schema/number.js:435:16)
+      at cast (/home/runner/workspace/node_modules/mongoose/lib/cast.js:390:32)
+      at Query.cast (/home/runner/workspace/node_modules/mongoose/lib/query.js:4907:12)
+      at Query._castConditions (/home/runner/workspace/node_modules/mongoose/lib/query.js:2325:10)
+      at model.Query._find (/home/runner/workspace/node_modules/mongoose/lib/query.js:2352:8)
+      at model.Query.exec (/home/runner/workspace/node_modules/mongoose/lib/query.js:4456:80)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async MongoStorage.getPropertiesByOwner (/home/runner/workspace/server/storage/mongo-storage.ts:95:26)
+      at async <anonymous> (/home/runner/workspace/server/routes.ts:136:26) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '=='
+  },
+  valueType: 'number'
+}
+10:35:51 AM [express] GET /api/properties/owner/chats 500 in 710ms :: {"error":"Failed to fetch owner…
