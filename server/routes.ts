@@ -758,12 +758,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/properties/owner/chats", ensureLandowner, async (req, res) => {
     try {
       // Ensure valid user ID and it's a landowner
-      if (!req.user || !req.user.id) {
+      if (!req.user || typeof req.user.id !== 'number') {
         console.error('Missing or invalid user:', req.user);
         return res.status(401).json({ error: "Invalid user session" });
       }
 
-      const ownerId = Number(req.user.id);
+      const ownerId = req.user.id;
       console.log('Fetching chat properties for owner:', ownerId);
 
       // Get properties owned by the landowner
