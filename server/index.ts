@@ -11,17 +11,17 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Add request logging middleware early in the chain
-app.use(requestLogger);
-
-// Trust first proxy for secure cookies
+// Trust first proxy for secure cookies in all environments
 app.set("trust proxy", 1);
 
-// Set up auth before CORS middleware to ensure session handling
+// Request logging should come before auth to log all requests
+app.use(requestLogger);
+
+// Set up auth with session handling before routes
 import { setupAuth } from "./auth";
 setupAuth(app);
 
-// CORS and headers configuration
+// CORS configuration after auth setup
 app.use((req, res, next) => {
   const origin = req.headers.origin || '*';
 
@@ -72,7 +72,7 @@ app.use((req, res, next) => {
 
     const server = await registerRoutes(app);
 
-    // Set up WebSocket server before Vite middleware
+    // Set up WebSocket server after auth and routes
     setupWebSocketServer(server);
 
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -37,8 +37,10 @@ export function setupAuth(app: Express) {
     cookie: {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      httpOnly: true
     },
+    name: "connect.sid"
   };
 
   app.set("trust proxy", 1);
@@ -77,7 +79,6 @@ export function setupAuth(app: Express) {
         return done(null, false);
       }
 
-      // Always ensure consistent ID type
       const normalizedUser = {
         ...user,
         id: Number(user.id)

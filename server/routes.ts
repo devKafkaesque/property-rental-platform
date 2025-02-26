@@ -133,8 +133,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/properties/owner/:id", async (req, res) => {
     try {
-      const properties = await storage.getPropertiesByOwner(Number(req.params.id));
-      console.log(`Retrieved properties for owner ${req.params.id}:`, properties);
+      // Parse and validate the owner ID
+      const ownerId = Number(req.params.id);
+      if (isNaN(ownerId)) {
+        console.error('Invalid owner ID parameter:', req.params.id);
+        return res.status(400).json({ error: "Invalid owner ID format" });
+      }
+
+      console.log(`Fetching properties for owner ID: ${ownerId}`);
+      const properties = await storage.getPropertiesByOwner(ownerId);
+      console.log(`Retrieved properties for owner ${ownerId}:`, properties);
       res.json(properties);
     } catch (error) {
       console.error('Error fetching owner properties:', error);
@@ -757,44 +765,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/properties/owner/chats", ensureLandowner, async (req, res) => {
     try {
-      // Ensure valid user ID
-      if (!req.user) {
-        console.error('No user found in request');
-        return res.status(401).json({ error: "Authentication required" });
+      // Type check the user object
+      if (!req.user || typeof req.user.id === 'undefined') {
+        console.error('Missing or invalid user:', req.user);
+        return res.status(401).json({ error: "Invalid user session" });
       }
 
-      const userId = Number(req.user.id);
-      if (isNaN(userId)) {
-        console.error('Invalid user ID:', req.user.id);
-        return res.status(400).json({ error: "Invalid user ID" });
+      const ownerId = Number(req.user.id);
+      if (isNaN(ownerId)) {
+        console.error('Invalid owner ID type:', { id: req.user.id, type: typeof req.user.id });
+        return res.status(400).json({ error: "Invalid owner ID" });
       }
 
-      console.log('Fetching chat properties for owner:', userId);
+      console.log('Fetching chat properties for owner:', ownerId);
 
-      // Get properties owned by the landowner
-      const properties = await storage.getPropertiesByOwner(userId);
+      const properties = await storage.getPropertiesByOwner(ownerId);
       console.log('Found landowner properties:', properties);
 
       if (!properties || properties.length === 0) {
-        console.log('No properties found for landowner:', userId);
+        console.log('No properties found for landowner:', ownerId);
         return res.json([]);
       }
 
-      // Map properties to include active tenant contract details
       const chatProperties = await Promise.all(
         properties.map(async (property) => {
           if (!property) return null;
 
-          // Get contracts for this property
           const contracts = await storage.getTenantContractsByProperty(property.id);
           console.log(`Contracts for property ${property.id}:`, contracts);
 
-          // Find active contract
           const activeContract = contracts.find(c => c.contractStatus === "active");
           console.log(`Active contract for property ${property.id}:`, activeContract);
 
           if (activeContract) {
-            // Get tenant details
             const tenant = await storage.getUser(activeContract.tenantId);
             console.log('Found active contract with tenant:', {
               propertyId: property.id,
@@ -813,11 +816,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      // Filter out null values (properties without active contracts)
       const activeProperties = chatProperties.filter((prop): prop is NonNullable<typeof prop> => prop !== null);
       console.log('Final chat properties:', activeProperties);
 
-      // Send response
       res.json(activeProperties);
     } catch (error) {
       console.error('Error fetching landowner chat properties:', error);

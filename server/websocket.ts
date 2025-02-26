@@ -35,24 +35,50 @@ class ChatServer {
       clientTracking: true,
       verifyClient: async (info, callback) => {
         try {
-          const cookies = info.req.headers.cookie ? parse(info.req.headers.cookie) : {};
-          const sessionId = cookies['connect.sid'];
+          log('WebSocket connection attempt:', {
+            headers: info.req.headers,
+            url: info.req.url,
+            method: info.req.method
+          });
 
+          const cookies = info.req.headers.cookie ? parse(info.req.headers.cookie) : {};
+          log('Parsed cookies:', cookies);
+
+          const sessionId = cookies['connect.sid'];
           if (!sessionId) {
-            log('No session ID found');
+            log('No session ID found in cookies');
             return callback(false, 401, 'Authentication required');
           }
 
+          log('Found session ID:', sessionId);
+
           // Get session from store
           const sessionStore = storage.sessionStore as session.Store;
-          sessionStore.get(sessionId.substring(2).split('.')[0], async (err, sessionData) => {
-            if (err || !sessionData || !sessionData.passport || !sessionData.passport.user) {
-              log('Invalid session:', { err, sessionData });
+          const rawSessionId = sessionId.substring(2).split('.')[0];
+          log('Processing session ID:', rawSessionId);
+
+          sessionStore.get(rawSessionId, async (err, sessionData) => {
+            if (err) {
+              log('Session store error:', err);
+              return callback(false, 500, 'Session store error');
+            }
+
+            if (!sessionData) {
+              log('No session data found');
+              return callback(false, 401, 'Invalid session');
+            }
+
+            log('Session data:', sessionData);
+
+            if (!sessionData.passport || !sessionData.passport.user) {
+              log('No passport user in session');
               return callback(false, 401, 'Invalid session');
             }
 
             try {
               const userId = Number(sessionData.passport.user);
+              log('Attempting to fetch user:', userId);
+
               const user = await storage.getUser(userId);
 
               if (!user) {
@@ -60,7 +86,13 @@ class ChatServer {
                 return callback(false, 401, 'User not found');
               }
 
-              // Attach user data to request for later use
+              log('User authenticated:', {
+                id: user.id,
+                username: user.username,
+                role: user.role
+              });
+
+              // Attach normalized user data to request
               (info.req as any).user = {
                 ...user,
                 id: Number(user.id)
@@ -68,12 +100,12 @@ class ChatServer {
 
               callback(true);
             } catch (error) {
-              log('Error validating user:', error);
+              log('Error validating user:', error instanceof Error ? error.message : 'Unknown error');
               callback(false, 500, 'Internal server error');
             }
           });
         } catch (error) {
-          log('WebSocket connection error:', error instanceof Error ? error.message : 'Unknown error');
+          log('WebSocket verification error:', error instanceof Error ? error.message : 'Unknown error');
           callback(false, 500, 'Internal server error');
         }
       }
@@ -87,17 +119,32 @@ class ChatServer {
       }
 
       const userId = Number(req.user.id);
-      log('New WebSocket connection established for user:', userId);
+      log('New WebSocket connection established for user:', {
+        userId,
+        role: req.user.role,
+        username: req.user.username
+      });
 
       ws.on('message', async (data: string) => {
         try {
           const message = JSON.parse(data) as ChatMessageData;
+
           // Ensure message userId matches authenticated user
           if (message.userId !== userId) {
-            log('User ID mismatch:', { messageUserId: message.userId, authenticatedUserId: userId });
+            log('User ID mismatch:', {
+              messageUserId: message.userId,
+              authenticatedUserId: userId
+            });
             ws.close(1008, 'Invalid user ID');
             return;
           }
+
+          log('Processing message:', {
+            type: message.type,
+            userId: message.userId,
+            propertyId: message.propertyId
+          });
+
           await this.handleMessage(ws, message);
         } catch (error) {
           log('Error handling message:', error instanceof Error ? error.message : 'Unknown error');
@@ -115,6 +162,7 @@ class ChatServer {
       });
 
       ws.on('close', () => {
+        log('WebSocket connection closed for user:', userId);
         this.handleDisconnect(ws);
       });
 
