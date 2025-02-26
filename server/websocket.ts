@@ -3,6 +3,8 @@ import { Server } from 'http';
 import { log } from './vite';
 import { ChatMessage } from './models/chat';
 import { parse } from 'cookie';
+import session from 'express-session';
+import { storage } from './storage';
 
 interface ChatClient {
   ws: WebSocket;
@@ -33,36 +35,69 @@ class ChatServer {
       clientTracking: true,
       verifyClient: async (info, callback) => {
         try {
-          // Log connection attempt details
-          log('WebSocket connection attempt:', {
-            url: info.req.url,
-            headers: info.req.headers,
-            origin: info.origin,
-            secure: info.req.socket.encrypted,
-            cookies: info.req.headers.cookie ? parse(info.req.headers.cookie) : {}
-          });
+          const cookies = info.req.headers.cookie ? parse(info.req.headers.cookie) : {};
+          const sessionId = cookies['connect.sid'];
 
-          // For now, allow all connections for debugging
-          callback(true);
+          if (!sessionId) {
+            log('No session ID found');
+            return callback(false, 401, 'Authentication required');
+          }
+
+          // Get session from store
+          const sessionStore = storage.sessionStore as session.Store;
+          sessionStore.get(sessionId.substring(2).split('.')[0], async (err, sessionData) => {
+            if (err || !sessionData || !sessionData.passport || !sessionData.passport.user) {
+              log('Invalid session:', { err, sessionData });
+              return callback(false, 401, 'Invalid session');
+            }
+
+            try {
+              const userId = Number(sessionData.passport.user);
+              const user = await storage.getUser(userId);
+
+              if (!user) {
+                log('User not found:', userId);
+                return callback(false, 401, 'User not found');
+              }
+
+              // Attach user data to request for later use
+              (info.req as any).user = {
+                ...user,
+                id: Number(user.id)
+              };
+
+              callback(true);
+            } catch (error) {
+              log('Error validating user:', error);
+              callback(false, 500, 'Internal server error');
+            }
+          });
         } catch (error) {
           log('WebSocket connection error:', error instanceof Error ? error.message : 'Unknown error');
-          callback(false, 403, 'Unauthorized');
+          callback(false, 500, 'Internal server error');
         }
       }
     });
 
-    wss.on('connection', async (ws: WebSocket) => {
-      log('New WebSocket connection established');
+    wss.on('connection', async (ws: WebSocket, req: any) => {
+      if (!req.user) {
+        log('No user data in WebSocket connection');
+        ws.close(1008, 'Authentication required');
+        return;
+      }
+
+      const userId = Number(req.user.id);
+      log('New WebSocket connection established for user:', userId);
 
       ws.on('message', async (data: string) => {
         try {
           const message = JSON.parse(data) as ChatMessageData;
-          log('Received message:', {
-            type: message.type,
-            userId: message.userId,
-            propertyId: message.propertyId,
-            timestamp: message.timestamp
-          });
+          // Ensure message userId matches authenticated user
+          if (message.userId !== userId) {
+            log('User ID mismatch:', { messageUserId: message.userId, authenticatedUserId: userId });
+            ws.close(1008, 'Invalid user ID');
+            return;
+          }
           await this.handleMessage(ws, message);
         } catch (error) {
           log('Error handling message:', error instanceof Error ? error.message : 'Unknown error');

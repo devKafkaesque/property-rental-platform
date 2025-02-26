@@ -37,6 +37,7 @@ export function setupAuth(app: Express) {
     cookie: {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
     },
   };
 
@@ -52,12 +53,13 @@ export function setupAuth(app: Express) {
         if (!user || !(await comparePasswords(password, user.password))) {
           return done(null, false, { message: "Invalid credentials" });
         }
-        // Ensure id is properly set as a number
-        const authenticatedUser = {
+
+        const normalizedUser = {
           ...user,
           id: Number(user.id)
         };
-        return done(null, authenticatedUser);
+
+        return done(null, normalizedUser);
       } catch (err) {
         return done(err);
       }
@@ -65,7 +67,6 @@ export function setupAuth(app: Express) {
   );
 
   passport.serializeUser((user, done) => {
-    // Ensure we're serializing the ID as a number
     done(null, Number(user.id));
   });
 
@@ -75,12 +76,14 @@ export function setupAuth(app: Express) {
       if (!user) {
         return done(null, false);
       }
-      // Ensure id is properly set as a number when deserializing
-      const deserializedUser = {
+
+      // Always ensure consistent ID type
+      const normalizedUser = {
         ...user,
         id: Number(user.id)
       };
-      done(null, deserializedUser);
+
+      return done(null, normalizedUser);
     } catch (err) {
       done(err);
     }
@@ -103,15 +106,14 @@ export function setupAuth(app: Express) {
         password: await hashPassword(req.body.password),
       });
 
-      // Ensure id is a number before login
-      const createdUser = {
+      const normalizedUser = {
         ...user,
         id: Number(user.id)
       };
 
-      req.login(createdUser, (err) => {
+      req.login(normalizedUser, (err) => {
         if (err) return next(err);
-        res.status(201).json(createdUser);
+        res.status(201).json(normalizedUser);
       });
     } catch (err) {
       next(err);
@@ -119,7 +121,6 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    // Ensure we're sending back a user with numeric ID
     const user = req.user as Express.User;
     res.status(200).json({
       ...user,
@@ -135,8 +136,10 @@ export function setupAuth(app: Express) {
   });
 
   app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    // Ensure we're sending back a user with numeric ID
+    if (!req.isAuthenticated()) {
+      return res.sendStatus(401);
+    }
+
     const user = req.user as Express.User;
     res.json({
       ...user,

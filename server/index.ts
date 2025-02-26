@@ -6,23 +6,30 @@ import { requestLogger } from "./middleware/request-logger";
 import { setupWebSocketServer } from "./websocket";
 
 const app = express();
+
+// Basic middleware setup
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Add request logging middleware early in the chain
 app.use(requestLogger);
 
-// CORS and headers configuration for both HTTP and WebSocket
+// Trust first proxy for secure cookies
+app.set("trust proxy", 1);
+
+// Set up auth before CORS middleware to ensure session handling
+import { setupAuth } from "./auth";
+setupAuth(app);
+
+// CORS and headers configuration
 app.use((req, res, next) => {
   const origin = req.headers.origin || '*';
 
-  // Allow WebSocket upgrade requests and CORS
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  // Handle WebSocket upgrade requests
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Max-Age', '1728000');
     res.status(204).end();

@@ -757,13 +757,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/properties/owner/chats", ensureLandowner, async (req, res) => {
     try {
+      // Ensure valid user ID
       if (!req.user) {
+        console.error('No user found in request');
         return res.status(401).json({ error: "Authentication required" });
       }
 
       const userId = Number(req.user.id);
       if (isNaN(userId)) {
-        console.error('Invalid user ID:', req.user);
+        console.error('Invalid user ID:', req.user.id);
         return res.status(400).json({ error: "Invalid user ID" });
       }
 
