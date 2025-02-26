@@ -21,7 +21,7 @@ interface ChatMessageData {
   propertyId: number;
   timestamp: number | string;
   role?: 'tenant' | 'landowner';
-  messages?: typeof ChatMessage[]; // For history type
+  messages?: typeof ChatMessage[];
 }
 
 class ChatServer {
@@ -35,43 +35,47 @@ class ChatServer {
       clientTracking: true,
       verifyClient: async (info, callback) => {
         try {
+          // Skip verification for Vite dev server websockets
+          if (info.req.url?.startsWith('/__vite')) {
+            log('Allowing Vite WebSocket connection');
+            return callback(true);
+          }
+
           log('WebSocket connection attempt:', {
-            headers: info.req.headers,
             url: info.req.url,
-            method: info.req.method
+            headers: info.req.headers,
+            cookie: info.req.headers.cookie
           });
 
-          const cookies = info.req.headers.cookie ? parse(info.req.headers.cookie) : {};
+          if (!info.req.headers.cookie) {
+            log('No cookies found in headers');
+            return callback(false, 401, 'No session cookie');
+          }
+
+          const cookies = parse(info.req.headers.cookie);
           log('Parsed cookies:', cookies);
 
           const sessionId = cookies['connect.sid'];
           if (!sessionId) {
-            log('No session ID found in cookies');
-            return callback(false, 401, 'Authentication required');
+            log('Session ID not found in cookies');
+            return callback(false, 401, 'Session not found');
           }
 
-          log('Found session ID:', sessionId);
-
-          // Get session from store
-          const sessionStore = storage.sessionStore as session.Store;
+          // Extract the raw session ID from signed cookie
           const rawSessionId = sessionId.substring(2).split('.')[0];
           log('Processing session ID:', rawSessionId);
 
+          const sessionStore = storage.sessionStore as session.Store;
           sessionStore.get(rawSessionId, async (err, sessionData) => {
             if (err) {
               log('Session store error:', err);
               return callback(false, 500, 'Session store error');
             }
 
-            if (!sessionData) {
-              log('No session data found');
-              return callback(false, 401, 'Invalid session');
-            }
+            log('Retrieved session data:', sessionData);
 
-            log('Session data:', sessionData);
-
-            if (!sessionData.passport || !sessionData.passport.user) {
-              log('No passport user in session');
+            if (!sessionData?.passport?.user) {
+              log('Invalid session data:', sessionData);
               return callback(false, 401, 'Invalid session');
             }
 
@@ -80,7 +84,6 @@ class ChatServer {
               log('Attempting to fetch user:', userId);
 
               const user = await storage.getUser(userId);
-
               if (!user) {
                 log('User not found:', userId);
                 return callback(false, 401, 'User not found');
@@ -92,7 +95,6 @@ class ChatServer {
                 role: user.role
               });
 
-              // Attach normalized user data to request
               (info.req as any).user = {
                 ...user,
                 id: Number(user.id)
@@ -100,18 +102,24 @@ class ChatServer {
 
               callback(true);
             } catch (error) {
-              log('Error validating user:', error instanceof Error ? error.message : 'Unknown error');
+              log('User validation error:', error);
               callback(false, 500, 'Internal server error');
             }
           });
         } catch (error) {
-          log('WebSocket verification error:', error instanceof Error ? error.message : 'Unknown error');
+          log('WebSocket verification error:', error);
           callback(false, 500, 'Internal server error');
         }
       }
     });
 
     wss.on('connection', async (ws: WebSocket, req: any) => {
+      // Skip handling Vite WebSocket connections
+      if (req.url?.startsWith('/__vite')) {
+        log('Ignoring Vite WebSocket connection');
+        return;
+      }
+
       if (!req.user) {
         log('No user data in WebSocket connection');
         ws.close(1008, 'Authentication required');
@@ -119,15 +127,18 @@ class ChatServer {
       }
 
       const userId = Number(req.user.id);
-      log('New WebSocket connection established for user:', {
-        userId,
-        role: req.user.role,
-        username: req.user.username
-      });
+      log('WebSocket connection established:', { userId, role: req.user.role });
+
+      this.handleConnection(ws, req.user);
 
       ws.on('message', async (data: string) => {
         try {
           const message = JSON.parse(data) as ChatMessageData;
+          log('Received message:', {
+            type: message.type,
+            userId: message.userId,
+            propertyId: message.propertyId
+          });
 
           // Ensure message userId matches authenticated user
           if (message.userId !== userId) {
@@ -139,41 +150,28 @@ class ChatServer {
             return;
           }
 
-          log('Processing message:', {
-            type: message.type,
-            userId: message.userId,
-            propertyId: message.propertyId
-          });
-
           await this.handleMessage(ws, message);
         } catch (error) {
-          log('Error handling message:', error instanceof Error ? error.message : 'Unknown error');
+          log('Message handling error:', error);
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-              type: 'error',
-              content: 'Failed to process message'
-            }));
+            ws.send(JSON.stringify({ type: 'error', content: 'Failed to process message' }));
           }
         }
       });
 
-      ws.on('error', (error) => {
-        log('WebSocket error:', error instanceof Error ? error.message : 'Unknown error');
-      });
-
       ws.on('close', () => {
-        log('WebSocket connection closed for user:', userId);
+        log('Connection closed:', userId);
         this.handleDisconnect(ws);
       });
 
-      // Add ping/pong for connection health check
+      // Setup ping/pong
       (ws as any).isAlive = true;
       ws.on('pong', () => {
         (ws as any).isAlive = true;
       });
     });
 
-    // Heartbeat to check connection health
+    // Heartbeat check
     const interval = setInterval(() => {
       wss.clients.forEach((ws) => {
         if ((ws as any).isAlive === false) {
@@ -188,6 +186,16 @@ class ChatServer {
     wss.on('close', () => {
       clearInterval(interval);
     });
+  }
+
+  private handleConnection(ws: WebSocket, user: any) {
+    const client: ChatClient = {
+      ws,
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+    };
+    this.clients.set(user.id, client);
   }
 
   private async handleMessage(ws: WebSocket, message: ChatMessageData) {
@@ -224,30 +232,13 @@ class ChatServer {
 
   private async handleJoin(ws: WebSocket, message: ChatMessageData & { role: 'tenant' | 'landowner' }) {
     try {
-      const existingClient = this.clients.get(message.userId);
-      if (existingClient) {
-        if (existingClient.ws.readyState === WebSocket.OPEN) {
-          log('Client already connected, skipping join');
-          return;
-        }
-        this.clients.delete(message.userId);
-      }
-
-      const client: ChatClient = {
-        ws,
-        userId: message.userId,
-        username: message.username,
-        role: message.role
-      };
-
-      this.clients.set(message.userId, client);
-
+      // Add user to property group
       if (!this.propertyGroups.has(message.propertyId)) {
         this.propertyGroups.set(message.propertyId, new Set());
       }
       this.propertyGroups.get(message.propertyId)!.add(message.userId);
 
-      // Load and send chat history
+      // Load chat history
       const previousMessages = await ChatMessage.find({ propertyId: message.propertyId })
         .sort({ timestamp: -1 })
         .limit(100)
@@ -260,7 +251,7 @@ class ChatServer {
         }));
       }
 
-      // Save join message
+      // Create and save join message
       const joinMessage = new ChatMessage({
         type: 'join',
         userId: message.userId,
@@ -271,7 +262,7 @@ class ChatServer {
       });
       await joinMessage.save();
 
-      // Broadcast join
+      // Broadcast join message
       this.broadcastToPropertyGroup({
         type: 'join',
         userId: message.userId,
@@ -312,7 +303,6 @@ class ChatServer {
     try {
       const timestamp = new Date(message.timestamp);
 
-      // Find and update the message
       const originalMessage = await ChatMessage.findOneAndUpdate(
         {
           propertyId: message.propertyId,
@@ -333,7 +323,6 @@ class ChatServer {
         return;
       }
 
-      // Broadcast deletion
       this.broadcastToPropertyGroup({
         type: 'delete',
         userId: message.userId,

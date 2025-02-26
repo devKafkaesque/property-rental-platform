@@ -35,10 +35,11 @@ export function setupAuth(app: Express) {
     saveUninitialized: false,
     store: storage.sessionStore,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // Set to false for development
       sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      httpOnly: true
+      httpOnly: true,
+      path: '/'
     },
     name: "connect.sid"
   };
@@ -51,7 +52,7 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        const user = await storage.getUserByUsernameOrEmail(username);
+        const user = await storage.getUserByUsername(username);
         if (!user || !(await comparePasswords(password, user.password))) {
           return done(null, false, { message: "Invalid credentials" });
         }
@@ -138,9 +139,11 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) {
+      console.log('User not authenticated');
       return res.sendStatus(401);
     }
 
+    console.log('User authenticated:', req.user);
     const user = req.user as Express.User;
     res.json({
       ...user,
