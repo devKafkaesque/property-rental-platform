@@ -1,6 +1,6 @@
 # Keyper
 
-**Keyper** is an advanced property rental platform designed as a personal hobby project by [Your Name]. It serves as both a marketplace for property rentals and a tenant management system, offering detailed property listings, AI-powered features, and real-time interaction between landlords and tenants. Deployed at [https://keyper001.onrender.com/](https://keyper001.onrender.com/), Keyper leverages a modern tech stack to deliver a comprehensive rental experience.
+**Keyper** is an advanced property rental platform designed as a personal hobby project by Vishist Parashar. It serves as both a marketplace for property rentals and a tenant management system, offering detailed property listings, AI-powered features, and real-time interaction between landlords and tenants. Deployed at [https://keyper001.onrender.com/](https://keyper001.onrender.com/), Keyper leverages a modern tech stack to deliver a comprehensive rental experience.
 
 - **Version**: 1.0.0
 - **Deployment Date**: February 27, 2025
